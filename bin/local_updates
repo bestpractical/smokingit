@@ -1,0 +1,130 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use lib 'lib';
+
+use Jifty;
+BEGIN { Jifty->new; }
+use Storable qw/thaw/;
+use Benchmark qw/timestr/;
+
+use Gearman::Worker;
+use TAP::Parser::Aggregator;
+
+my $worker = Gearman::Worker->new(
+    job_servers => Jifty->config->app('job_servers'),
+);
+$worker->register_function(
+    post_results => sub {
+        my $job = shift;
+        my %result = %{ thaw( $job->arg ) };
+
+        # Properties to extract from the aggregator
+        my @props =
+            qw/failed
+               parse_errors
+               passed
+               planned
+               skipped
+               todo
+               todo_passed
+               wait
+               exit/;
+
+        # Aggregator might not exist if we had a configure failure
+        my $a = $result{aggregator};
+        if ($a) {
+            $result{$_} = $a->$_ for @props;
+            $result{is_ok}      = not($a->has_problems);
+            $result{elapsed}    = $a->elapsed->[0];
+            $result{error}      = undef;
+        } else {
+            # Unset the existing data if there was a fail
+            $result{$_} = undef for @props, "is_ok", "elapsed";
+        }
+        $result{submitted_at} = Jifty::DateTime->now;
+
+        # Find the smoke
+        my $smoke = Smokingit::Model::SmokeResult->new;
+        $smoke->load( delete $result{smoke_id} );
+        if (not $smoke->id) {
+            warn "Invalid smoke ID\n";
+            return 0;
+        } elsif (not $smoke->gearman_process) {
+            warn "Smoke report on something that wasn't being smoked?\n";
+            return 0;
+        }
+
+        # Lock on the project
+        Jifty->handle->begin_transaction;
+        my $project = Smokingit::Model::Project->new;
+        $project->row_lock(1);
+        $project->load( $smoke->project->id );
+
+        # Update with the new data
+        for my $key (keys %result) {
+            my $method = "set_$key";
+            $smoke->$method($result{$key});
+        }
+        # Mark as no longer smoking
+        $smoke->set_gearman_process(undef);
+
+        # And commit all of that
+        Jifty->handle->commit;
+
+        # Pull and re-dispatch any new commits
+        Smokingit->gearman->dispatch_background(
+            sync_project => $project->name,
+        );
+
+        return 1;
+    },
+);
+$worker->register_function(
+    sync_project => sub {
+        my $job = shift;
+        my $project_name = $job->arg;
+
+        my $project = Smokingit::Model::Project->new;
+        $project->load_by_cols( name => $project_name );
+        return 0 unless $project->id;
+
+        # Update or clone, as need be
+        if (-d $project->repository_path) {
+            warn "Updating $project_name\n";
+            $project->update_repository;
+        } else {
+            warn "Cloning $project_name\n";
+            system("git", "clone", "--quiet", "--mirror",
+                   $project->repository_url,
+                   $project->repository_path);
+        }
+
+        # Sync up the branches, but acquire a lock on the project first
+        Jifty->handle->begin_transaction;
+        $project->row_lock(1);
+        $project->load( $project->id );
+        $project->sync_branches;
+        Jifty->handle->commit;
+
+        return 1;
+    },
+);
+
+$worker->register_function(
+    retest => sub {
+        my $job = shift;
+        my $sha = $job->arg;
+
+        my $commits = Smokingit::Model::CommitCollection->new;
+        $commits->limit( column => "sha", operator => "like", value => "$sha%" );
+        return 0 unless $commits->count == 1;
+
+        my $commit = $commits->next;
+        warn "Retesting @{[$commit->short_sha]}\n";
+        return $commit->run_smoke;
+    },
+);
+
+$worker->work while 1;

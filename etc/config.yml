@@ -1,0 +1,38 @@
+# See perldoc Jifty::Config for more information about config files
+--- 
+framework: 
+  AdminMode: 0
+  ApplicationName: Smokingit
+  ApplicationUUID: 422F3F12-2482-11E0-AFC9-AC305CCACE6C
+  ConfigFileVersion: 5
+  Database: 
+    Database: smokingit
+    Driver: Pg
+    Host: localhost
+    Password: ''
+    User: postgres
+    Version: 0.0.1
+  DevelMode: 1
+  LogLevel: INFO
+  Mailer: Sendmail
+  MailerArgs: []
+  Plugins: 
+    - AdminUI: {}
+    - CompressedCSSandJS: {}
+    - ErrorTemplates: {}
+    - LetMe: {}
+    - OnlineDocs: {}
+    - REST: {}
+    - SkeletonApp: {}
+  SkipAccessControl: 1
+  Web: 
+    BaseURL: http://localhost
+    DataDir: var/mason
+    Globals: []
+    PSGIStatic: 1
+    Port: 8888
+    StaticRoot: share/web/static
+    TemplateRoot: share/web/templates
+application:
+  job_servers:
+    - 127.0.0.1:4730

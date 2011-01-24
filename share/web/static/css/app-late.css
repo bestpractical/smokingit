@@ -1,0 +1,308 @@
+html {
+  padding: .75em;
+  background: #223;
+  font-size: 87.5%;
+  font-family: "Bitstream Vera Sans", Sans, sans-serif;
+}
+
+body {
+  z-index: 0;
+  position: relative;
+  margin: 0 auto;
+  padding: 1em;
+  -moz-border-radius: 1em;
+  -webkit-border-radius: 1em;
+  border-radius: 1em;
+  border: 1px solid #779;
+  background-color: #ddd;
+  color: #111;
+  max-width: 60em;
+  min-height: 150px;
+  background-image: url('/static/images/smokingit-logo-small.png');
+  background-repeat: no-repeat;
+  background-position: top right;
+}
+
+p, li, blockquote {
+  line-height: 1.3em;
+}
+
+h1.header {
+  border-bottom: 1px dotted #779;
+  position: relative;
+  top: -0.3em;
+  margin: 0;
+  padding: 0;
+  margin-left: -0.5em;
+  margin-right: 1em;
+  padding-left: 1.5em;
+  text-align: center;
+}
+h1.header a {
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.subtitle {
+  text-align: center;
+}
+
+.clear {
+  clear: both;
+}
+
+h2 {
+  display: block;
+  background: #fff;
+  width: 10em;
+  position: relative;
+  left: -1.2em;
+  padding: 0.2em 0.5em;
+  margin-bottom: 0.1em;
+  text-align: center;
+}
+
+h2 + p, h2 + ul {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+a, a:link, a:visited {
+  color: #111;
+  text-decoration: underline;
+  font-weight: normal;
+}
+
+a:hover {
+  color: #000;
+  text-decoration: none;
+  font-weight: normal;
+}
+
+dl { padding: 0; margin: 0;}
+
+ul {
+  margin: 0;
+  padding: 0;
+  margin-left: 1.5em;
+  padding-bottom: 0.5em;
+}
+
+li {
+  margin: 0;
+  padding: 0;
+}
+
+
+
+/* View of a project */
+#branch-list {
+  margin-top: 1em;
+  border-right: 1px dotted #779;
+  position: relative;
+  width: 50%;
+  float: left;
+}
+#branch-list h2 { margin-top: 0 }
+#branch-list .no-branches {
+    display: block;
+    padding-top: 1em;
+    font-style: italic;
+    text-decoration: none;
+}
+#right-bar {
+  margin-top: 1em;
+  border-left: 1px dotted #779;
+  width: 48%;
+  float: left;
+  padding-left: 1em;
+  margin-left: -1px;
+}
+#configuration-list h2 { margin-top: 0 }
+
+/* View of a branch */
+#branch-properties {
+  padding-top: 1em;
+  width: 60%;
+  float: left;
+}
+
+#branch-properties th {
+  font-weight: bold;
+  vertical-align: top;
+  text-align: right;
+  width: 7em;
+  padding-right: 0.5em;
+  padding-bottom: 0.75em;
+}
+
+#branch-properties td {
+  vertical-align: top;
+  padding-bottom: 0.75em;
+}
+
+#long-status {
+  padding-top: 1.3em;
+  width: 35%;
+  float: left;
+  height: 6.5em;
+}
+#long-status.master {
+  height: auto;
+}
+
+/* Update tinkering to make things line up */
+#branch-properties td .form_field .hints{
+  display: none;
+}
+#branch-properties td .form_field, #long-status .form_field {
+  padding-top: 0;
+  padding-bottom: 0;
+  margin-top: -0.3em;
+  margin-left: -0.3em;
+}
+#branch-properties td .form_field input,
+#branch-properties td .form_field select,
+#long-status textarea {
+  font-family: "Bitstream Vera Sans", Sans, sans-serif;
+  font-size: 100%;
+}
+#branch-properties td .form_field input[type=text] {
+  margin-bottom: -0.3em;
+  margin-left: -0.25em;
+  padding-left: 0.4em;
+  padding-bottom: 0;
+  width: 25em;
+}
+#branch-properties td .form_field select {
+  margin-top: 0;
+  margin-left: -0.25em;
+  margin-bottom: -0.3em;
+}
+#long-status textarea {
+  width: 98%;
+  margin-left: 0.1em;
+  margin-top: 0.1em;
+}
+
+/* Branch save, cancel links */
+#branch-buttons {
+  clear: left;
+  float: right;
+  position: relative;
+}
+#branch-buttons .submit_button {
+  display: inline;
+  margin: 0;
+}
+#branch-buttons .submit_button input {
+  margin: 0;
+}
+#branch-buttons .branch-cancel-button {
+  position: relative;
+  left: -5em;
+}
+#branch-buttons .branch-save-button {
+  position: relative;
+  left: 6em;
+}
+
+/* Property hiding for branch status */
+#branch-properties.master tr.owner,
+#branch-properties.master tr.to_merge_into,
+#branch-properties.master tr.review_by {
+  display: none;
+}
+
+#branch-properties.hacking     tr.review_by,
+#branch-properties.needs-tests tr.review_by,
+#branch-properties.ignore      tr.review_by {
+  display: none;
+}
+
+.complete-hline {
+  width: 100%;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  border-bottom: 1px dotted #779;
+  margin-left: -1em;
+  padding-right: 2em;
+}
+
+.hline {
+  clear: left;
+  width: 60%;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  border-bottom: 1px dotted #779;
+}
+
+#branch-title {
+  width: 50%;
+  border-bottom: 1px dotted #779;
+}
+
+.commitlist .sha {
+  font-family: monospace;
+  font-weight: bold;
+  text-decoration: none;
+  padding-right: 0.5em;
+}
+.commitlist.biglist .sha {
+  font-size: 150%;
+}
+
+.commitlist .commit { margin-top: .2em; }
+.commitlist .commit.passing  .sha { color: #1c1; }
+.commitlist .commit.failing  .sha { color: #f11; }
+.commitlist .commit.errors   .sha { color: #f11; }
+.commitlist .commit.testing  .sha { color: #11f; }
+.commitlist .commit.queued   .sha { color: #115; }
+.commitlist .commit.untested .sha { color: #555; }
+
+.commitlist .okbox {
+  float: left;
+  width: 32px;
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  text-decoration: none;
+  margin: 0;
+  padding: 0;
+}
+.commitlist .okbox.passing { background-image: url('/static/images/silk/tick.png');      }
+.commitlist .okbox.failing { background-image: url('/static/images/silk/cross.png');     }
+.commitlist .okbox.errors  { background-image: url('/static/images/silk/error.png');     }
+.commitlist .okbox.testing { background-image: url('/static/images/silk/cog.png');       }
+.commitlist .okbox.queued  { background-image: url('/static/images/silk/hourglass.png'); }
+
+.commitlist .branchpoint {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  width: 50%;
+  border-bottom: 1px dotted #779;
+}
+
+/* Footer and escaping smoke in the corner */
+#footer {
+  position: absolute;
+  bottom: 0;
+  z-index: -1;
+}
+
+#content {
+  z-index: 1;
+}
+
+#corner {
+  position: relative;
+  left: -150px;
+  top: 150px;
+  width: 300px;
+  height: 300px;
+  margin-left: -1em;
+  background-image: url('/static/images/escaping-smoke.png');
+  background-repeat: no-repeat;
+  background-position: bottom left;
+}

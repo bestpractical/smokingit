@@ -1,0 +1,16 @@
+MANIFEST.bak
+Makefile
+Makefile.old
+blib/
+inc/
+pm_to_blib
+t/*/mason*/
+var/
+mason*/
+*.swp
+*.swo
+log/
+etc/site_config.yml
+.prove
+META.yml
+t/mailbox_*
