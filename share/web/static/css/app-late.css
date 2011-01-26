@@ -94,6 +94,11 @@ li {
 }
 
 
+/* Front page */
+#create-project input.argument-repository_url {
+    width: 30em;
+}
+
 
 /* View of a project */
 #branch-list {
