@@ -127,6 +127,29 @@ $worker->register_function(
         return $tests;
     },
 );
+$worker->register_function(
+    plan_tests => sub {
+        my $job = shift;
+        my $project_name = $job->arg;
+
+        my $projects = Smokingit::Model::ProjectCollection->new;
+        if ($project_name) {
+            $projects->limit( column => "name", value => $project_name );
+        } else {
+            $projects->unlimit;
+        }
+        return 0 unless $projects->count;
+
+        my $tests = 0;
+        while (my $project = $projects->next) {
+            Jifty->handle->begin_transaction;
+            $tests += $project->schedule_tests;
+            Jifty->handle->commit;
+        }
+
+        return $tests;
+    }
+);
 
 $worker->register_function(
     retest => sub {

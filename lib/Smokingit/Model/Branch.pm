@@ -72,7 +72,7 @@ sub create {
     return ($ok, $msg) unless $ok;
 
     Smokingit->gearman->dispatch_background(
-        sync_project => $self->project->name,
+        plan_tests => $self->project->name,
     );
 
     return ($ok, $msg);
