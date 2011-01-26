@@ -37,41 +37,43 @@ template '/project' => page {
             );
         };
 
-        div {
-            id is "recent-tests";
-            class is "commitlist";
-            h2 { "Recent tests" };
-            my $tests = Smokingit::Model::SmokeResultCollection->new;
-            $tests->limit(
-                column => "gearman_process",
-                operator => "IS",
-                value => "NULL"
-            );
-            $tests->limit( column => "project_id", value => get('project')->id );
-            $tests->order_by( { column => "submitted_at", order  => "desc" },
-                              { column => "id",           order  => "desc" } );
-            $tests->rows_per_page(10);
-            while (my $test = $tests->next) {
-                my ($status, $msg) = $test->commit->status($test->configuration);
-                div {
-                    class is "commit $status";
-                    hyperlink(
-                        class   => "okbox $status",
-                        label   => "&nbsp;",
-                        escape_label => 0,
-                        url     => "/test/".$test->commit->sha."/".$test->configuration->name,
-                        tooltip => $msg,
-                    );
-                    hyperlink(
-                        tooltip => $msg,
-                        class   => "sha",
-                        url     => "/test/".$test->commit->sha."/".$test->configuration->name,
-                        label   => $test->commit->short_sha,
-                    );
-                    outs( $test->configuration->name );
+        my $tests = Smokingit::Model::SmokeResultCollection->new;
+        $tests->limit(
+            column => "gearman_process",
+            operator => "IS",
+            value => "NULL"
+        );
+        $tests->limit( column => "project_id", value => get('project')->id );
+        $tests->order_by( { column => "submitted_at", order  => "desc" },
+                          { column => "id",           order  => "desc" } );
+        $tests->rows_per_page(10);
+        if ($tests->count) {
+            div {
+                id is "recent-tests";
+                class is "commitlist";
+                h2 { "Recent tests" };
+                while (my $test = $tests->next) {
+                    my ($status, $msg) = $test->commit->status($test->configuration);
+                    div {
+                        class is "commit $status";
+                        hyperlink(
+                            class   => "okbox $status",
+                            label   => "&nbsp;",
+                            escape_label => 0,
+                            url     => "/test/".$test->commit->sha."/".$test->configuration->name,
+                            tooltip => $msg,
+                        );
+                        hyperlink(
+                            tooltip => $msg,
+                            class   => "sha",
+                            url     => "/test/".$test->commit->sha."/".$test->configuration->name,
+                            label   => $test->commit->short_sha,
+                        );
+                        outs( $test->configuration->name );
+                    }
                 }
-            }
-        };
+            };
+        }
 
         my @planned = get('project')->planned_tests;
         if (@planned) {
