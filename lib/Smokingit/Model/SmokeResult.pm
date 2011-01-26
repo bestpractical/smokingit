@@ -65,11 +65,20 @@ sub gearman_status {
 sub run_smoke {
     my $self = shift;
 
+    if ($self->gearman_status->known) {
+        warn join( ":",
+              $self->project->name,
+              $self->configuration->name,
+              $self->commit->short_sha
+          )." is already in the queue\n";
+        return 0;
+    }
+
     warn "Smoking ".
         join( ":",
               $self->project->name,
               $self->configuration->name,
-              $self->commit->sha
+              $self->commit->short_sha
           )."\n";
 
     my $job_id = Smokingit->gearman->dispatch_background(
@@ -86,7 +95,12 @@ sub run_smoke {
             test_glob      => $self->configuration->test_glob,
         } ),
     );
+    unless ($job_id) {
+        warn "Unable to insert run_tests job!\n";
+        return 0;
+    }
     $self->set_gearman_process($job_id);
+    return 1;
 }
 
 1;
