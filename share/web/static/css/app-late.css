@@ -303,6 +303,16 @@ li {
   border-bottom: 1px dotted #779;
 }
 
+
+/* Commit pages */
+.failingtest .header {
+  border-bottom: 5px dotted #f11;
+}
+.passingtest .header {
+  border-bottom: 5px dotted #1c1;
+}
+
+
 /* Footer and escaping smoke in the corner */
 #footer {
   position: absolute;

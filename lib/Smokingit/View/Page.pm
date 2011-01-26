@@ -35,7 +35,11 @@ sub render_title_inpage {
     if ( $title ) {
         my $url = "/";
         $url = "/project/".get('project')->name."/" if get('branch');
-        h1 { attr { class => 'header' }; hyperlink( url => $url, label => $title) };
+        $url = "/project/".get('commit')->project->name."/" if get('commit');
+        h1 {
+            attr { class => 'header' };
+            hyperlink( url => $url, label => $title)
+        };
     }
 
     Jifty->web->render_messages;

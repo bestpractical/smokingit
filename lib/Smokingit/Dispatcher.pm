@@ -79,6 +79,58 @@ on '/*/**' => run {
     redirect '/project/' . $project->name . '/branch/' . $branch->name;
 };
 
+# Commits and test commits
+under '/test/*' => [
+    run {
+        my $sha = $1;
+        if (length($sha) == 40) {
+            my $commit = Smokingit::Model::Commit->new;
+            $commit->load_by_cols( sha => $sha );
+            show '/errors/404' unless $commit->id;
+            set( commit => $commit );
+        } else {
+            my $commits = Smokingit::Model::CommitCollection->new;
+            $commits->limit( column => 'sha', operator => 'like', value => "$sha%" );
+            show '/errors/404' unless $commits->count == 1;
+            set( commit => $commits->first );
+        }
+    },
+    on '' => run {
+        my $configs = Smokingit::Model::ConfigurationCollection->new;
+        $configs->limit( column => "project_id", value => get('commit')->project_id );
+        redirect '/test/' . get('commit')->sha . '/' . $configs->first->name
+            if $configs->count == 1;
+        show '/commit';
+    },
+    on '*' => run {
+        my $cname = $1;
+        my $config = Smokingit::Model::Configuration->new;
+        $config->load_by_cols(
+            project_id => get('commit')->project,
+            name => $cname,
+        );
+        show '/errors/404' unless $config->id;
+
+        my $result = Smokingit::Model::SmokeResult->new;
+        $result->load_by_cols(
+            project_id => get('commit')->project,
+            commit_id => get('commit')->id,
+            configuration_id => $config->id,
+        );
+        set( smoke => $result );
+        show '/smoke';
+    },
+];
+
+# Shortcut URLs, of /sha
+on '/*' => run {
+    my ($sha) = ($1);
+    my $commits = Smokingit::Model::CommitCollection->new;
+    $commits->limit( column => 'sha', operator => 'like', value => "$sha%" );
+    return unless $commits->count == 1;
+    redirect '/test/' . $commits->first->sha;
+};
+
 
 # GitHub post-receive-hook support
 on '/github' => run {

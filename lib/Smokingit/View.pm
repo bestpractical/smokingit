@@ -13,8 +13,12 @@ alias Smokingit::View::Branch under '/';
 require Smokingit::View::Configuration;
 alias Smokingit::View::Configuration under '/';
 
+require Smokingit::View::Commit;
+alias Smokingit::View::Commit under '/';
+
 require Smokingit::View::GitHub;
 alias Smokingit::View::GitHub under '/';
+
 
 template '/index.html' => page {
     page_title is 'Projects';
