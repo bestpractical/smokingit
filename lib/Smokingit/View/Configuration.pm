@@ -10,20 +10,14 @@ template '/config' => page {
     page_title is $c->name;
     div {{class is "subtitle"} $c->project->name };
     form {
-        my $config = new_action(
+        my $update = new_action(
             class => "UpdateConfiguration",
             moniker => "update-configuration",
             record => $c,
         );
-        my $update = new_action(
-            class => "UpdateProject",
-            moniker => "update-project",
-            record => get('project'),
-        );
-        render_param( $config => "name" );
-        render_param( $config => "configure_cmd" );
-        render_param( $config => "env" );
-
+        render_param( $update => "name" );
+        render_param( $update => "configure_cmd" );
+        render_param( $update => "env" );
         render_param( $update => "test_glob" );
         render_param( $update => "parallel" );
         form_submit( label => _("Update"), url => "/project/". $c->project->name . "/");
