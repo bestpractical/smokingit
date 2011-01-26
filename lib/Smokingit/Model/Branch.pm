@@ -25,7 +25,15 @@ use Smokingit::Record schema {
     column status =>
         type is 'text',
         is mandatory,
-        valid_values are qw(ignore hacking needs-tests needs-review awaiting-merge merged master releng);
+        valid_values are [
+            { value => "ignore",         display => "Ignore" },
+            { value => "hacking",        display => "Being worked on" },
+            { value => "needs-tests",    display => "Needs tests" },
+            { value => "needs-review",   display => "Needs review" },
+            { value => "awaiting-merge", display => "Needs merge" },
+            { value => "merged",         display => "Merged" },
+            { value => "master",         display => "Trunk branch" },
+            { value => "releng",         display => "Release branch" }];
 
     column long_status =>
         type is 'text',
@@ -74,6 +82,13 @@ sub create {
     }
 
     return ($ok, $msg);
+}
+
+sub display_status {
+    my $self = shift;
+    my @options = @{$self->column("status")->valid_values};
+    my ($match) = grep {$_->{value} eq $self->status} @options;
+    return $match->{display};
 }
 
 sub long_status_html {

@@ -96,7 +96,7 @@ template '/fragments/branch/properties' => sub {
         row {
             th { "Status" };
             cell {
-                span { {class is "status"} $b->status };
+                span { {class is "status"} $b->display_status };
                 if ($b->status ne "master") {
                     if (not $b->last_status_update->id
                             or $b->current_commit->id != $b->last_status_update->id) {
