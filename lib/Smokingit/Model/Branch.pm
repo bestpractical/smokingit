@@ -98,13 +98,7 @@ sub commit_list {
     my @revs = map {chomp; $_} `git rev-list ^$first $last`;
     push @revs, map {chomp; $_} `git rev-list $first --max-count=11`;
 
-    my @commits;
-    for my $sha (@revs) {
-        my $c = Smokingit::Model::Commit->new;
-        $c->load_or_create( project_id => $self->project->id, sha => $sha );
-        push @commits, $c;
-    }
-    return @commits;
+    return map {$self->project->sha($_)} @revs;
 }
 
 sub branchpoint {
@@ -120,10 +114,8 @@ sub branchpoint {
     my @branch = map {chomp; $_} `git rev-list $tip ^$trunk --max-count=$max`;
     return unless @branch;
 
-    my $commit = Smokingit::Model::Commit->new;
-    $commit->load_by_cols( sha => $branch[-1] );
-    return undef unless $commit->id;
-    return $commit;
+    my $commit = $self->project->sha( $branch[-1] );
+    return $commit->id ? $commit : undef;
 }
 
 1;

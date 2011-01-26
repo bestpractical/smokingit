@@ -55,6 +55,15 @@ sub repository {
     );
 }
 
+sub sha {
+    my $self = shift;
+    my $sha = shift;
+    local $ENV{GIT_DIR} = $self->repository_path;
+    my $commit = Smokingit::Model::Commit->new;
+    $commit->load_or_create( project_id => $self->id, sha => $sha );
+    return $commit;
+}
+
 sub configurations {
     my $self = shift;
     my $configs = Smokingit::Model::ConfigurationCollection->new;
@@ -134,10 +143,9 @@ sub sync_branches {
         next if $new_ref eq $old_ref;
 
         warn "Update @{[$branch->name]} $old_ref -> $new_ref\n";
-        my @revs = map{chomp; $_} `git rev-list ^$old_ref $new_ref`;
-        my $commit = Smokingit::Model::Commit->new;
-        $commit->load_or_create( project_id => $self->id, sha => $_ ) for reverse @revs;
-        $branch->set_current_commit_id($commit->id);
+        my @revs = map {chomp; $_} `git rev-list ^$old_ref $new_ref`;
+        $self->sha( $_ ) for reverse @revs;
+        $branch->set_current_commit_id($self->sha($new_ref)->id);
     }
 
     for my $name (keys %branches) {

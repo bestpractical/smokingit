@@ -155,13 +155,7 @@ sub smoked {
 
 sub parents {
     my $self = shift;
-    my @parents;
-    for my $sha (split ' ', $self->_value('parents')) {
-        my $c = Smokingit::Model::Commit->new;
-        $c->load_or_create( sha => $sha, project_id => $self->project->id );
-        push @parents, $c;
-    }
-    return @parents;
+    return map {$self->project->sha($_)} split ' ', $self->_value('parents');
 }
 
 1;
