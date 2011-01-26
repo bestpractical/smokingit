@@ -86,16 +86,6 @@ sub branches {
     return $branches;
 }
 
-sub tested_heads {
-    my $self = shift;
-    my $tested = Smokingit::Model::TestedHeadCollection->new;
-    $tested->limit(
-        column => 'project_id',
-        value => $self->id,
-    );
-    return $tested;
-}
-
 sub planned_tests {
     my $self = shift;
     my $tests = Smokingit::Model::SmokeResultCollection->new;
@@ -121,8 +111,6 @@ sub update_repository {
 
 sub sync_branches {
     my $self = shift;
-    warn "sync_branches called with no row lock!"
-        unless $self->row_lock;
 
     local $ENV{GIT_DIR} = $self->repository_path;
 
@@ -164,89 +152,52 @@ sub sync_branches {
         );
         warn "Create failed: $msg" unless $ok;
     }
-    $self->schedule_tests;
+    return $self->schedule_tests;
 }
 
 sub schedule_tests {
     my $self = shift;
-    warn "schedule_tests called with no row lock!"
-        unless $self->row_lock;
 
     local $ENV{GIT_DIR} = $self->repository_path;
 
-    # Determine the possible tips to test
-    my %branches;
-    my $branches = $self->branches;
-    while (my $branch = $branches->next) {
-        $branches{$branch->current_commit->sha}++
-            if $branch->is_tested;
-    }
-
-    # Bail early if there are no testable branches
-    return unless keys %branches;
-
     my $smokes = 0;
-    my $configs = $self->configurations;
-    while (my $config = $configs->next) {
-        # Find the set of already-covered commits
-        my %tested;
-        my $tested = $self->tested_heads;
-        $tested->limit( column => 'configuration_id', value => $config->id );
-        while (my $head = $tested->next) {
-            $tested{$head->commit->sha} = $head;
+    warn "Scheduling tests";
+
+    # Go through branches, masters first
+    my @branches;
+    my $branches = $self->branches;
+    $branches->limit( column => "status", value => "master" );
+    push @branches, @{$branches->items_array_ref};
+    $branches = $self->branches;
+    $branches->limit( column => "status", operator => "!=", value => "master", entry_aggregator => "AND" );
+    $branches->limit( column => "status", operator => "!=", value => "ignore", entry_aggregator => "AND" );
+    push @branches, @{$branches->items_array_ref};
+    warn "Branches: @{[map {$_->name} @branches]}\n";
+    return unless @branches;
+
+    my @configs = @{$self->configurations->items_array_ref};
+
+    for my $branch (@branches) {
+        # If there's nothing else happening, ensure that the tip is tested
+        if ($branch->current_commit->id == $branch->tested_commit->id) {
+            $smokes += $branch->current_commit->run_smoke($_, $branch) for @configs;
+            next;
         }
 
-        warn "Looking for possible @{[$config->name]} tests\n";
-        my @filter = (keys(%branches), map "^$_", keys %tested);
-        my @lines = split /\n/, `git rev-list --reverse --parents @filter`;
-        for my $l (@lines) {
-            # We only want to test it if both parents have existing tests
-            my ($commit, @shas) = split ' ', $l;
-            my @tested = grep {defined} map {$tested{$_}} @shas;
-            warn "Looking at $commit (parents @shas)\n";
-            if (@tested < @shas) {
-                warn "  Parents which are not tested\n";
-                next;
+        # Go looking for other commits to run
+        my @filter = (      $branch->current_commit->sha,
+                      "^" . $branch->tested_commit->sha);
+
+        my @shas = map {$self->sha($_)} split /\n/, `git rev-list --reverse @filter`;
+
+        for my $sha (@shas) {
+            for my $config (@configs) {
+                warn "Testing @{[$sha->short_sha]} on @{[$branch->name]} using @{[$config->name]}\n";
+                $smokes += $sha->run_smoke($config, $branch);
             }
-            my @pending = grep {$_->gearman_process} map {$_->smoke_result} @tested;
-            if (@pending) {
-                warn "  Parents which are still testing\n";
-                next;
-            }
-
-            warn "  Sending to testing.\n";
-
-            my $to_test = Smokingit::Model::Commit->new;
-            $to_test->load_by_cols( project_id => $self->id, sha => $commit );
-
-            $_->delete for @tested;
-            my $head = Smokingit::Model::TestedHead->new;
-            $head->create(
-                project_id       => $self->id,
-                configuration_id => $config->id,
-                commit_id        => $to_test->id,
-            );
-            $smokes += $to_test->run_smoke($config);
         }
-    }
 
-    # As a fallback, ensure that all testable heads have been tested,
-    # even if they are kids of existing testedhead objects
-    while (my $config = $configs->next) {
-        for my $sha (keys %branches) {
-            my $commit = Smokingit::Model::Commit->new;
-            $commit->load_by_cols( project_id => $self->id, sha => $sha );
-
-            my $existing = Smokingit::Model::SmokeResult->new;
-            $existing->load_by_cols(
-                project_id       => $self->id,
-                configuration_id => $config->id,
-                commit_id        => $commit->id,
-            );
-            next if $existing->id;
-            warn "Smoking untested head ".join(":",$config->name,$commit->short_sha)."\n";
-            $smokes += $commit->run_smoke($config);
-        }
+        $branch->set_tested_commit_id($branch->current_commit->id);
     }
 
     return $smokes;

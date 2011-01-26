@@ -20,6 +20,9 @@ use Smokingit::Record schema {
         is indexed,
         references Smokingit::Model::Commit;
 
+    column from_branch_id =>
+        references Smokingit::Model::Branch;
+
     column gearman_process =>
         type is 'text';
 

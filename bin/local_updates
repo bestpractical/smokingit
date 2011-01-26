@@ -63,6 +63,7 @@ $worker->register_function(
         $result{submitted_at} = Jifty::DateTime->now;
 
         # Find the smoke
+        Jifty->handle->begin_transaction;
         my $smoke = Smokingit::Model::SmokeResult->new;
         $smoke->load( delete $result{smoke_id} );
         if (not $smoke->id) {
@@ -72,12 +73,6 @@ $worker->register_function(
             warn "Smoke report on $result{smoke_id} which wasn't being smoked?\n";
             return 0;
         }
-
-        # Lock on the project
-        Jifty->handle->begin_transaction;
-        my $project = Smokingit::Model::Project->new;
-        $project->row_lock(1);
-        $project->load( $smoke->project->id );
 
         # Update with the new data
         for my $key (keys %result) {
@@ -127,14 +122,12 @@ $worker->register_function(
                    $project->repository_path);
         }
 
-        # Sync up the branches, but acquire a lock on the project first
+        # Sync up the branches
         Jifty->handle->begin_transaction;
-        $project->row_lock(1);
-        $project->load( $project->id );
-        $project->sync_branches;
+        my $tests = $project->sync_branches;
         Jifty->handle->commit;
 
-        return 1;
+        return $tests;
     },
 );
 

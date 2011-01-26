@@ -37,44 +37,14 @@ use Smokingit::Record schema {
 
 sub create {
     my $self = shift;
-    my %args = (
-        @_,
+    my ($ok, $msg) = $self->SUPER::create(@_);
+    return ($ok, $msg) unless $ok;
+
+    Smokingit->gearman->dispatch_background(
+        sync_project => $self->project->name,
     );
 
-    # Lock on the project
-    Jifty->handle->begin_transaction;
-    my $project = Smokingit::Model::Project->new;
-    $project->row_lock(1);
-    $project->load( $args{project_id} );
-
-    my ($ok, $msg) = $self->SUPER::create(%args);
-    unless ($ok) {
-        Jifty->handle->rollback;
-        return ($ok, $msg);
-    }
-
-    # Find the distinct set of branch tips
-    my %commits;
-    my $branches = $project->branches;
-    while (my $b = $branches->next) {
-        warn "Current head @{[$b->name]} is @{[$b->current_commit->short_sha]}\n";
-        $commits{$b->current_commit->id}++;
-    }
-
-    # Add a TestedHead for each of the above
-    for my $commit_id (keys %commits) {
-        my $head = Smokingit::Model::TestedHead->new;
-        $head->create(
-            project_id       => $project->id,
-            configuration_id => $self->id,
-            commit_id        => $commit_id,
-        );
-    }
-
-    # Schedule tests
-    $project->schedule_tests;
-
-    Jifty->handle->commit;
+    return ($ok, $msg);
 }
 
 1;

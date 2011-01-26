@@ -64,29 +64,22 @@ sub is_smoked {
 sub run_smoke {
     my $self = shift;
     my $config = shift;
+    my $branch = shift;
 
-    if ($config) {
-        my $smoke = Smokingit::Model::SmokeResult->new;
-        $smoke->load_or_create(
-            project_id       => $self->project->id,
-            configuration_id => $config->id,
-            commit_id        => $self->id,
-        );
-        $smoke->run_smoke;
-        return 1;
-    } else {
-        my $configs = $self->project->configurations;
-        my $smoke = Smokingit::Model::SmokeResult->new;
-        while ($config = $configs->next) {
-            $smoke->load_or_create(
-                project_id       => $self->project->id,
-                configuration_id => $config->id,
-                commit_id        => $self->id,
-            );
-            $smoke->run_smoke;
-        }
-        return $configs->count;
-    }
+    my %lookup = (
+        project_id       => $self->project->id,
+        configuration_id => $config->id,
+        commit_id        => $self->id,
+    );
+    my $smoke = Smokingit::Model::SmokeResult->new;
+    $smoke->load_by_cols( %lookup );
+    return 0 if $smoke->id;
+
+    $smoke->create(
+        %lookup,
+        from_branch_id => $branch->id,
+    );
+    return $smoke->run_smoke;
 }
 
 sub status {

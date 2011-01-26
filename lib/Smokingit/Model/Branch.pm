@@ -19,6 +19,9 @@ use Smokingit::Record schema {
     column current_commit_id =>
         references Smokingit::Model::Commit;
 
+    column tested_commit_id =>
+        references Smokingit::Model::Commit;
+
     column last_status_update =>
         references Smokingit::Model::Commit;
 
@@ -57,32 +60,24 @@ sub create {
     );
 
     # Ensure that we have a tip commit
-    my $tip = Smokingit::Model::Commit->new;
-    $tip->load_or_create( project_id => $args{project_id}, sha => delete $args{sha} );
+    my $project = Smokingit::Model::Project->new;
+    $project->load( $args{project_id} );
+    my $tip = $project->sha( delete $args{sha} );
     $args{current_commit_id} = $tip->id;
-    $args{first_commit_id} = $tip->id;
+    $args{tested_commit_id}  = $tip->id;
+    $args{first_commit_id}   = $tip->id;
     $args{owner} = $tip->committer;
 
     my ($ok, $msg) = $self->SUPER::create(%args);
-    unless ($ok) {
-        Jifty->handle->rollback;
-        return ($ok, $msg);
-    }
+    return ($ok, $msg) unless $ok;
 
-    # For the tip, add skips for all configurations
-    warn "Current head @{[$self->name]} is @{[$self->current_commit->short_sha]}\n";
-    my $configs = $self->project->configurations;
-    while (my $config = $configs->next) {
-        my $head = Smokingit::Model::TestedHead->new;
-        $head->load_or_create(
-            project_id       => $self->project->id,
-            configuration_id => $config->id,
-            commit_id        => $tip->id,
-        );
-    }
+    Smokingit->gearman->dispatch_background(
+        sync_project => $self->project->name,
+    );
 
     return ($ok, $msg);
 }
+
 
 sub display_status {
     my $self = shift;
