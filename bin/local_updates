@@ -154,7 +154,7 @@ $worker->register_function(
 $worker->register_function(
     retest => sub {
         my $job = shift;
-        my $sha = $job->arg;
+        my ($sha,$configname,$branchname) = $job->arg =~ /^([0-9a-fA-F]+)(?:\s*\[(.*)\])?(?:\s*,\s*(.*))?/;
 
         my $commits = Smokingit::Model::CommitCollection->new;
         $commits->limit( column => "sha", operator => "like", value => "$sha%" );
@@ -162,7 +162,41 @@ $worker->register_function(
 
         my $commit = $commits->next;
         warn "Retesting @{[$commit->short_sha]}\n";
-        return $commit->run_smoke;
+
+        my $branch = Smokingit::Model::Branch->new;
+        $branch->load_by_cols( project_id => $commit->project->id, name => $branchname )
+            if $branchname;
+        warn "Invalid branch name $branchname given\n" if $branchname and not $branch->id;
+
+        my $configs = $commit->project->configurations;
+        $configs->limit( column => "name", operator => "MATCHES", value => $configname )
+            if defined $configname and length $configname;
+        warn "Found @{[$configs->count]} configs\n";
+        while (my $config = $configs->next) {
+            my %lookup = (
+                project_id       => $commit->project->id,
+                configuration_id => $config->id,
+                commit_id        => $commit->id,
+            );
+            my $smoke = Smokingit::Model::SmokeResult->new;
+            $smoke->load_by_cols( %lookup );
+            if ($smoke->id) {
+                warn "Re-testing @{[$smoke->id]}\n";
+                $smoke->set_submitted_at(undef);
+                $smoke->set_gearman_process(undef);
+                $smoke->run_smoke;
+            } elsif ($branch->id) {
+                $smoke->create(
+                    %lookup,
+                    from_branch_id => $branch->id,
+                );
+                warn "Smoking new @{[$smoke->id]}\n";
+                $smoke->run_smoke;
+            } else {
+                warn "No existing smoke for $sha found, and no branch given\n";
+            }
+        }
+        return 1;
     },
 );
 
