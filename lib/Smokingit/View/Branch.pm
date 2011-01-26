@@ -111,6 +111,9 @@ template '/fragments/branch/properties' => sub {
                 th { "Owner" };
                 cell { $b->owner };
             };
+        }
+
+        if ($b->status ne "master" and $b->status ne "releng") {
             row {
                 th { "Merge into" };
                 cell { $b->to_merge_into->id ? $b->to_merge_into->name : "None" };

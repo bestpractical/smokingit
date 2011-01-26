@@ -214,6 +214,11 @@ li {
   display: none;
 }
 
+#branch-properties.releng tr.to_merge_into,
+#branch-properties.releng tr.review_by {
+  display: none;
+}
+
 #branch-properties.hacking     tr.review_by,
 #branch-properties.needs-tests tr.review_by,
 #branch-properties.ignore      tr.review_by {
