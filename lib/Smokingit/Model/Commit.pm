@@ -151,10 +151,21 @@ sub status {
 
 sub smoked {
     my $self = shift;
-    my $smoked = Smokingit::Model::SmokeResultCollection->new;
-    $smoked->limit( column => "commit_id", value => $self->id );
-    $smoked->limit( column => "project_id", value => $self->project->id );
-    return $smoked;
+    my $config = shift;
+    if ($config) {
+        my $smoke = Smokingit::Model::SmokeResult->new;
+        $smoke->load_by_cols(
+            project_id => $self->project->id,
+            commit_id => $self->id,
+            configuration_id => $config->id,
+        );
+        return $smoke;
+    } else {
+        my $smoked = Smokingit::Model::SmokeResultCollection->new;
+        $smoked->limit( column => "commit_id", value => $self->id );
+        $smoked->limit( column => "project_id", value => $self->project->id );
+        return $smoked;
+    }
 }
 
 sub parents {
