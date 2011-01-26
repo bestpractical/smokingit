@@ -106,7 +106,8 @@ sub planned_tests {
     );
     $tests->limit( column => "project_id", value => $self->id );
     my @tests = @{ $tests->items_array_ref };
-    @tests = sort { $b->gearman_status->running     <=>  $a->gearman_status->running
+    @tests = sort { $a->gearman_status->known       <=>  $b->gearman_status->known
+                or  $b->gearman_status->running     <=>  $a->gearman_status->running
                 or ($b->gearman_status->percent||0) <=> ($a->gearman_status->percent||0)
                 or  $a->id                          <=>  $b->id} @tests;
     return @tests;

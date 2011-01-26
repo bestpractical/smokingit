@@ -104,7 +104,9 @@ sub status {
             return ("untested", "");
         } elsif ($result->gearman_process) {
             my $status = $result->gearman_status;
-            if ($status->running) {
+            if (not $status->known) {
+                return ("broken", "Unknown");
+            } elsif ($status->running) {
                 my $msg = defined $status->percent
                     ? int($status->percent*100)."% complete"
                         : "Configuring";

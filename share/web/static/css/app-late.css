@@ -261,6 +261,7 @@ li {
 .commitlist .commit.errors   .sha { color: #f11; }
 .commitlist .commit.testing  .sha { color: #11f; }
 .commitlist .commit.queued   .sha { color: #115; }
+.commitlist .commit.broken   .sha { color: #f11; }
 .commitlist .commit.untested .sha { color: #555; }
 
 .commitlist .okbox {
@@ -278,6 +279,7 @@ li {
 .commitlist .okbox.errors  { background-image: url('/static/images/silk/error.png');           }
 .commitlist .okbox.testing { background-image: url('/static/images/silk/cog.png');             }
 .commitlist .okbox.queued  { background-image: url('/static/images/silk/hourglass.png');       }
+.commitlist .okbox.broken  { background-image: url('/static/images/silk/exclamation.png');     }
 
 .commitlist .branchpoint {
   margin-top: 0.5em;

@@ -56,10 +56,12 @@ sub short_error {
     return $msg;
 }
 
+use Gearman::JobStatus;
 sub gearman_status {
     my $self = shift;
-    return undef unless $self->gearman_process;
-    return $self->{job_status} ||= Smokingit->gearman->get_status($self->gearman_process);
+    return Gearman::JobStatus->new(0,0) unless $self->gearman_process;
+    return $self->{job_status} ||= Smokingit->gearman->get_status($self->gearman_process)
+        || Gearman::JobStatus->new(0,0);
 }
 
 sub run_smoke {
