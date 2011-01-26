@@ -46,11 +46,11 @@ template '/branch' => page {
             div {
                 {class is "commit ".$commit->status};
                 for my $config (@configs) {
-                    my ($status, $msg) = $commit->status($config);
+                    my ($status, $msg, $in) = $commit->status($config);
                     if ($status =~ /^(untested|testing|queued)$/) {
                         span {
                             attr { class => "okbox $status", title => $msg };
-                            outs_raw("&nbsp;")
+                            outs_raw($in ||"&nbsp;")
                         };
                     } else {
                         hyperlink(

@@ -82,12 +82,12 @@ template '/project' => page {
                 class is "commitlist";
                 h2 { "Planned tests" };
                 for my $test (@planned) {
-                    my ($status, $msg) = $test->commit->status($test->configuration);
+                    my ($status, $msg, $in) = $test->commit->status($test->configuration);
                     div {
                         class is "commit $status";
                         span {
                             attr { class => "okbox $status", title => $msg };
-                            outs_raw("&nbsp;")
+                            outs_raw($in || "&nbsp;")
                         };
                         span {
                             attr { class => "sha", title => $msg };

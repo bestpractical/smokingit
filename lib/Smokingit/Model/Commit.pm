@@ -107,10 +107,12 @@ sub status {
             if (not $status->known) {
                 return ("broken", "Unknown");
             } elsif ($status->running) {
-                my $msg = defined $status->percent
-                    ? int($status->percent*100)."% complete"
+                my $percent = defined $status->percent
+                    ? int($status->percent*100)."%" : undef;
+                my $msg = defined $percent
+                    ? "$percent complete"
                         : "Configuring";
-                return ("testing", $msg);
+                return ("testing", $msg, $percent);
             } else {
                 return ("queued", "Queued to test");
             }

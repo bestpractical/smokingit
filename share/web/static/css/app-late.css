@@ -277,6 +277,9 @@ li {
   text-decoration: none;
   margin: 0;
   padding: 0;
+  font-size: 50%;
+  line-height: 16px;
+  text-align: center;
 }
 .commitlist .okbox.passing { background-image: url('/static/images/silk/tick.png');            }
 .commitlist .okbox.todo    { background-image: url('/static/images/silk/asterisk_orange.png'); }
