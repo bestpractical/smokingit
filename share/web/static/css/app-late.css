@@ -105,7 +105,7 @@ li {
   margin-top: 1em;
   border-right: 1px dotted #779;
   position: relative;
-  width: 50%;
+  width: 40%;
   float: left;
 }
 #branch-list h2 { margin-top: 0 }
@@ -118,7 +118,7 @@ li {
 #right-bar {
   margin-top: 1em;
   border-left: 1px dotted #779;
-  width: 48%;
+  width: 58%;
   float: left;
   padding-left: 1em;
   margin-left: -1px;

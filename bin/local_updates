@@ -89,6 +89,7 @@ $worker->register_function(
             . $smoke->project->name
             ." ". $smoke->commit->short_sha
             ." using ". $smoke->configuration->name
+            ." on ". $smoke->from_branch->name
             .": ".($smoke->is_ok ? "OK" : "NOT OK")."\n";
 
         return 1;
