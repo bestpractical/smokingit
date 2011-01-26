@@ -85,10 +85,6 @@ $worker->register_function(
         # And commit all of that
         Jifty->handle->commit;
 
-        # Pull and re-dispatch any new commits
-        Smokingit->gearman->dispatch_background(
-            sync_project => $project->name,
-        );
         warn "Test result for "
             . $smoke->project->name
             ." ". $smoke->commit->short_sha
