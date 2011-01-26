@@ -78,22 +78,9 @@ on '' => run {
     redirect '/project/' . $project->name . "/";
 };
 
+
 # GitHub post-receive-hook support
-use Jifty::JSON qw/decode_json/;
 on '/github' => run {
-    show '/github/error' unless Jifty->web->request->method eq "POST";
-    show '/github/error' unless get('payload');
-    my $json = eval { decode_json(get('payload')) }
-        or show '/github/error';
-    my $name = $json->{repository}{name}
-        or show '/github/error';
-
-    my $project = Smokingit::Model::Project->new;
-    $project->load_by_cols( name => $name );
-    Smokingit->gearman->dispatch_background(
-        sync_project => $project->name,
-    ) if $project->id;
-
     show '/github';
 };
 
