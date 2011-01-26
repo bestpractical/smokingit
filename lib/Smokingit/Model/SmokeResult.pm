@@ -94,6 +94,7 @@ sub run_smoke {
             parallel       => ($self->configuration->parallel ? 1 : 0),
             test_glob      => $self->configuration->test_glob,
         } ),
+        { uniq => $self->id },
     );
     unless ($job_id) {
         warn "Unable to insert run_tests job!\n";
