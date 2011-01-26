@@ -66,10 +66,10 @@ $worker->register_function(
         my $smoke = Smokingit::Model::SmokeResult->new;
         $smoke->load( delete $result{smoke_id} );
         if (not $smoke->id) {
-            warn "Invalid smoke ID\n";
+            warn "Invalid smoke ID: $result{smoke_id}\n";
             return 0;
         } elsif (not $smoke->gearman_process) {
-            warn "Smoke report on something that wasn't being smoked?\n";
+            warn "Smoke report on $result{smoke_id} which wasn't being smoked?\n";
             return 0;
         }
 
@@ -94,6 +94,11 @@ $worker->register_function(
         Smokingit->gearman->dispatch_background(
             sync_project => $project->name,
         );
+        warn "Test result for "
+            . $smoke->project->name
+            ." ". $smoke->commit->short_sha
+            ." using ". $smoke->configuration->name
+            .": ".($smoke->is_ok ? "OK" : "NOT OK")."\n";
 
         return 1;
     },
@@ -102,10 +107,14 @@ $worker->register_function(
     sync_project => sub {
         my $job = shift;
         my $project_name = $job->arg;
+        warn "Sync $project_name";
 
         my $project = Smokingit::Model::Project->new;
         $project->load_by_cols( name => $project_name );
-        return 0 unless $project->id;
+        unless ($project->id) {
+            warn "No such project: $project_name\n";
+            return 0;
+        }
 
         # Update or clone, as need be
         if (-d $project->repository_path) {
