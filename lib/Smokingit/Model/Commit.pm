@@ -116,8 +116,6 @@ sub status {
             return ("errors", $result->short_error);
         } elsif ($result->is_ok) {
             return ("passing", $result->passed . " OK")
-        } elsif ($result->todo_passed) {
-            return ("failing", $result->todo_passed . " TODO passed");
         } elsif ($result->failed) {
             return ("failing", $result->failed . " failed");
         } elsif ($result->parse_errors) {
@@ -126,6 +124,8 @@ sub status {
             return ("failing", "Bad exit status (".$result->exit.")");
         } elsif ($result->wait) {
             return ("failing", "Bad wait status (".$result->wait.")");
+        } elsif ($result->todo_passed) {
+            return ("todo", $result->todo_passed . " TODO passed");
         } else {
             return ("failing", "Unknown failure");
         }
