@@ -38,7 +38,7 @@ template '/branch' => page {
 
     my $project_id = $b->project->id;
     my @commits = $b->commit_list;
-    my $branchpoint = $b->branchpoint(scalar @commits);
+    my $branchpoint = $b->branchpoint(@commits+1);
     div {
         id is "branch-commits";
         class is "commitlist biglist";
