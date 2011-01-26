@@ -249,17 +249,23 @@ li {
   border-bottom: 1px dotted #779;
 }
 
-.commitlist .sha {
+/* Commit lists, as on branch and project pages */
+.commitlist .commit {
+  margin-top: .2em;
+  clear: both;
+}
+
+.commitlist .commit .sha {
   font-family: monospace;
   font-weight: bold;
   text-decoration: none;
   padding-right: 0.5em;
+  float: left;
 }
-.commitlist.biglist .sha {
-  font-size: 150%;
+.commitlist.biglist .commit .sha {
+  font-size: 145%;
 }
 
-.commitlist .commit { margin-top: .2em; }
 .commitlist .commit.passing  .sha { color: #1c1; }
 .commitlist .commit.failing  .sha { color: #f11; }
 .commitlist .commit.todo     .sha { color: #fa0; }
@@ -290,6 +296,7 @@ li {
 .commitlist .okbox.broken  { background-image: url('/static/images/silk/exclamation.png');     }
 
 .commitlist .branchpoint {
+  clear: both;
   margin-top: 0.5em;
   margin-bottom: 0.5em;
   width: 50%;
