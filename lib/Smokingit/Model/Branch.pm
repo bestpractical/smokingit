@@ -78,6 +78,24 @@ sub create {
     return ($ok, $msg);
 }
 
+sub set_status {
+    my $self = shift;
+    my $val = shift;
+    my $prev_tested = $self->is_tested;
+
+    my @ret = $self->_set(column =>'status', value => $val);
+
+    if (not $prev_tested and $self->is_tested) {
+        # It's no longer ignored; start testing where the tip is now,
+        # not where it was when we first found it
+        $self->set_tested_commit_id( $self->current_commit->id );
+        Smokingit->gearman->dispatch_background(
+            plan_tests => $self->project->name,
+        );
+    }
+
+    return @ret;
+}
 
 sub display_status {
     my $self = shift;
