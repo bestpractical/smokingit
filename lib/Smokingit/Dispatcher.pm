@@ -4,6 +4,15 @@ use warnings;
 package Smokingit::Dispatcher;
 use Jifty::Dispatcher -base;
 
+# Auto redirect after create, to the project
+on '' => run {
+    my $res = Jifty->web->response->result('create-project');
+    return unless $res and $res->content('id');
+    my $project = Smokingit::Model::Project->new;
+    $project->load( $res->content('id') );
+    redirect '/project/' . $project->name . "/";
+};
+
 under '/project/*' => [
     run {
         my $project = Smokingit::Model::Project->new;
@@ -54,8 +63,8 @@ under '/project/*' => [
     },
 ];
 
+# Shortcut URLs, of /projectname/branchname
 on '/*/**' => run {
-    # Shortcut URLs, of /projectname/branchname
     my ($pname, $bname) = ($1, $2);
     my $project = Smokingit::Model::Project->new;
     $project->load_by_cols( name => $pname );
@@ -68,14 +77,6 @@ on '/*/**' => run {
     return unless $branch->id;
 
     redirect '/project/' . $project->name . '/branch/' . $branch->name;
-};
-
-on '' => run {
-    my $res = Jifty->web->response->result('create-project');
-    return unless $res and $res->content('id');
-    my $project = Smokingit::Model::Project->new;
-    $project->load( $res->content('id') );
-    redirect '/project/' . $project->name . "/";
 };
 
 
