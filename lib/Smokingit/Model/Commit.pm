@@ -116,7 +116,7 @@ sub status {
         } elsif ($result->failed) {
             return ("failing", $result->failed . " failed");
         } elsif ($result->parse_errors) {
-            return ("failing", $result->parse_errors . " parse errors");
+            return ("parsefail", $result->parse_errors . " parse errors");
         } elsif ($result->exit) {
             return ("failing", "Bad exit status (".$result->exit.")");
         } elsif ($result->wait) {

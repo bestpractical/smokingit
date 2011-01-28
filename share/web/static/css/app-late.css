@@ -271,14 +271,15 @@ li {
   font-size: 145%;
 }
 
-.commitlist .commit.passing  .sha { color: #1c1; }
-.commitlist .commit.failing  .sha { color: #f11; }
-.commitlist .commit.todo     .sha { color: #fa0; }
-.commitlist .commit.errors   .sha { color: #f11; }
-.commitlist .commit.testing  .sha { color: #11f; }
-.commitlist .commit.queued   .sha { color: #115; }
-.commitlist .commit.broken   .sha { color: #f11; }
-.commitlist .commit.untested .sha { color: #555; }
+.commitlist .commit.passing   .sha { color: #1c1; }
+.commitlist .commit.failing   .sha { color: #f11; }
+.commitlist .commit.todo      .sha { color: #fa0; }
+.commitlist .commit.parsefail .sha { color: #f11; }
+.commitlist .commit.errors    .sha { color: #f11; }
+.commitlist .commit.testing   .sha { color: #11f; }
+.commitlist .commit.queued    .sha { color: #115; }
+.commitlist .commit.broken    .sha { color: #f11; }
+.commitlist .commit.untested  .sha { color: #555; }
 
 .commitlist .okbox {
   float: left;
@@ -292,13 +293,14 @@ li {
   line-height: 16px;
   text-align: center;
 }
-.commitlist .okbox.passing { background-image: url('/static/images/silk/tick.png');            }
-.commitlist .okbox.todo    { background-image: url('/static/images/silk/asterisk_orange.png'); }
-.commitlist .okbox.failing { background-image: url('/static/images/silk/cross.png');           }
-.commitlist .okbox.errors  { background-image: url('/static/images/silk/error.png');           }
-.commitlist .okbox.testing { background-image: url('/static/images/silk/cog.png');             }
-.commitlist .okbox.queued  { background-image: url('/static/images/silk/hourglass.png');       }
-.commitlist .okbox.broken  { background-image: url('/static/images/silk/exclamation.png');     }
+.commitlist .okbox.passing   { background-image: url('/static/images/silk/tick.png');            }
+.commitlist .okbox.todo      { background-image: url('/static/images/silk/asterisk_orange.png'); }
+.commitlist .okbox.failing   { background-image: url('/static/images/silk/cross.png');           }
+.commitlist .okbox.parsefail { background-image: url('/static/images/silk/exclamation.png');     }
+.commitlist .okbox.errors    { background-image: url('/static/images/silk/error.png');           }
+.commitlist .okbox.testing   { background-image: url('/static/images/silk/cog.png');             }
+.commitlist .okbox.queued    { background-image: url('/static/images/silk/hourglass.png');       }
+.commitlist .okbox.broken    { background-image: url('/static/images/silk/server_error.png');    }
 
 .commitlist .branchpoint {
   clear: both;
