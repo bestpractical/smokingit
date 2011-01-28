@@ -6,7 +6,4 @@ gearmand \
     --verbose \
     --pid-file=var/gearman.pid \
     --log-file=log/gearmand.log \
-    --port=4730 \
-    --queue-type=libpq \
-    --libpq-conninfo="user=postgres dbname=smokingit" \
-    --libpq-table="gearman"
+    --port=4730
