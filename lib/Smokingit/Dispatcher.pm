@@ -63,22 +63,6 @@ under '/project/*' => [
     },
 ];
 
-# Shortcut URLs, of /projectname/branchname
-on '/*/**' => run {
-    my ($pname, $bname) = ($1, $2);
-    my $project = Smokingit::Model::Project->new;
-    $project->load_by_cols( name => $pname );
-    return unless $project->id;
-
-    my $branch = Smokingit::Model::Branch->new;
-    $bname =~ s{/+}{/}g;
-    $bname =~ s{/$}{};
-    $branch->load_by_cols( name => $bname, project_id => $project->id );
-    return unless $branch->id;
-
-    redirect '/project/' . $project->name . '/branch/' . $branch->name;
-};
-
 # Commits and test commits
 under '/test/*' => [
     run {
@@ -122,19 +106,40 @@ under '/test/*' => [
     },
 ];
 
-# Shortcut URLs, of /sha
-on '/*' => run {
-    my ($sha) = ($1);
-    my $commits = Smokingit::Model::CommitCollection->new;
-    $commits->limit( column => 'sha', operator => 'like', value => "$sha%" );
-    return unless $commits->count == 1;
-    redirect '/test/' . $commits->first->sha;
-};
-
-
 # GitHub post-receive-hook support
 on '/github' => run {
     show '/github';
 };
+
+# Shortcut URLs, of /projectname and /projectname/branchname and /sha
+under '/*' => [
+    run {
+        my $name = $1;
+        my $project = Smokingit::Model::Project->new;
+        $project->load_by_cols( name => $name );
+        if ($project->id) {
+            set project => $project;
+            return;
+        }
+
+        my $commits = Smokingit::Model::CommitCollection->new;
+        $commits->limit( column => 'sha', operator => 'like', value => "$name%" );
+        redirect '/test/' . $commits->first->sha
+            if $commits->count == 1;
+    },
+    on '' => run {
+        redirect '/project/'.get('project')->name.'/' if get('project');
+    },
+    on '**' => run {
+        my $bname = $1;
+        return unless get('project');
+        my $branch = Smokingit::Model::Branch->new;
+        $bname =~ s{/+}{/}g;
+        $bname =~ s{/$}{};
+        $branch->load_by_cols( name => $bname, project_id => get('project')->id );
+        redirect '/project/' . get('project')->name . '/branch/' . $branch->name
+            if $branch->id;
+    },
+];
 
 1;
