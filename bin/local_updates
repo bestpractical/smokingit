@@ -64,13 +64,14 @@ $worker->register_function(
 
         # Find the smoke
         Jifty->handle->begin_transaction;
+        my $smokeid = delete $result{smoke_id};
         my $smoke = Smokingit::Model::SmokeResult->new;
-        $smoke->load( delete $result{smoke_id} );
+        $smoke->load( $smokeid );
         if (not $smoke->id) {
-            warn "Invalid smoke ID: $result{smoke_id}\n";
+            warn "Invalid smoke ID: $smokeid\n";
             return 0;
         } elsif (not $smoke->gearman_process) {
-            warn "Smoke report on $result{smoke_id} which wasn't being smoked?\n";
+            warn "Smoke report on $smokeid which wasn't being smoked? (last report at @{[$smoke->submitted_at]})\n";
             return 0;
         }
 
