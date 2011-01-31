@@ -17,7 +17,7 @@ sub arguments {
 
     my $args = $self->SUPER::arguments;
 
-    my $branches = $self->record->trunks;
+    my $branches = $self->record->project->trunks;
 
     $args->{to_merge_into}{valid_values} = [
         {
