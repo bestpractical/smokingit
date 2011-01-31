@@ -174,7 +174,7 @@ template '/cooking.txt' => sub {
 
     my $trunks = get('project')->trunks;
     while (my $t = $trunks->next) {
-        $out .= $t->name."\n";
+        $out .= $t->name." - " . $t->current_commit->long_status . "\n";
 
         my $sub = $t->branches;
         while ($b = $sub->next) {
