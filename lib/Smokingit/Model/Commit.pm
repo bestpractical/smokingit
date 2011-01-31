@@ -149,6 +149,22 @@ sub status {
     }
 }
 
+sub long_status {
+    my $self = shift;
+    my %long = (
+        untested => "Untested",
+        queued   => "Queued for testing",
+        testing  => "Running tests",
+        passing  => "Passing all tests",
+        todo     => "TODO tests unexpectedly passed",
+        parse    => "Parse failures!",
+        failing  => "Failing tests!",
+        errors   => "Configuration errors!",
+        broken   => "Unknown failure!"
+    );
+    return $long{$self->status};
+}
+
 sub smoked {
     my $self = shift;
     my $config = shift;

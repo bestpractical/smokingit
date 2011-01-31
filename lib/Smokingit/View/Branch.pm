@@ -69,7 +69,7 @@ template '/branch' => page {
                     }
                 } else {
                     hyperlink(
-                        tooltip => $commit->status,
+                        tooltip => $commit->long_status,
                         class => "sha",
                         url => "/test/".$commit->sha."/",
                         label => $commit->short_sha,
