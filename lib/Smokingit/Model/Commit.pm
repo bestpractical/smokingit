@@ -142,7 +142,7 @@ sub status {
             my ($st) = $self->status($s);
             $results{$st}++;
         }
-        for my $st (qw/broken errors failing parsefail todo passing testing queued/) {
+        for my $st (qw/broken errors failing todo passing parsefail testing queued/) {
             $self->{status} ||= $st if $results{$st};
         }
         return $self->{status} ||= "untested";
