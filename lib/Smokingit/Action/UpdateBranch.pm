@@ -17,10 +17,7 @@ sub arguments {
 
     my $args = $self->SUPER::arguments;
 
-    my $branches = Smokingit::Model::BranchCollection->new;
-    $branches->limit( column => 'project_id', value => $self->record->project->id );
-    $branches->limit( column => 'status',     value => 'master' );
-    $branches->order_by( column => "name" );
+    my $branches = $self->record->trunks;
 
     $args->{to_merge_into}{valid_values} = [
         {

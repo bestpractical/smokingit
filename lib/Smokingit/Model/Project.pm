@@ -86,6 +86,13 @@ sub branches {
     return $branches;
 }
 
+sub trunks {
+    my $self = shift;
+    my $trunks = $self->branches;
+    $trunks->limit( column => "status", value => "master" );
+    return $trunks;
+}
+
 sub planned_tests {
     my $self = shift;
     my $tests = Smokingit::Model::SmokeResultCollection->new;

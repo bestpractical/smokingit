@@ -78,6 +78,18 @@ sub create {
     return ($ok, $msg);
 }
 
+sub branches {
+    my $self = shift;
+    my $branches = Smokingit::Model::BranchCollection->new;
+    return $branches unless $self->status eq "master";
+    $branches->limit( column => "project_id", value => $self->project->id );
+    $branches->limit( column => "status", operator => "!=", value => "ignore", entry_aggregator => "AND");
+    $branches->limit( column => "status", operator => "!=", value => "master", entry_aggregator => "AND");
+    $branches->limit( column => "to_merge_into", value => $self->id );
+    $branches->order_by( column => "name" );
+    return $branches;
+}
+
 sub set_status {
     my $self = shift;
     my $val = shift;

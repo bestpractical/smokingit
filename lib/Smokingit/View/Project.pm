@@ -125,12 +125,7 @@ template '/fragments/project/branch-list' => sub {
                         label => $b->name,
                         url => "branch/" . $b->name,
                     );
-                    my $sub = Smokingit::Model::BranchCollection->new;
-                    $sub->limit( column => "project_id", value => get('project_id') );
-                    $sub->limit( column => "status", operator => "!=", value => "ignore", entry_aggregator => "AND");
-                    $sub->limit( column => "status", operator => "!=", value => "master", entry_aggregator => "AND");
-                    $sub->limit( column => "to_merge_into", value => $b->id );
-                    branchlist($sub);
+                    branchlist($b->branches);
                 };
             }
         };
