@@ -192,8 +192,8 @@ sub schedule_tests {
         }
 
         # Go looking for other commits to run
-        my @filter = (      $branch->current_commit->sha,
-                      "^" . $branch->tested_commit->sha);
+        my @filter = (    $branch->current_commit->sha,
+                       map {"^".$_->tested_commit->sha} @branches );
 
         my @shas = map {$self->sha($_)} split /\n/, `git rev-list --reverse @filter`;
 
