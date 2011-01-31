@@ -58,9 +58,8 @@ under '/project/*' => [
         show '/config';
     },
 
-    on 'new-configuration' => run {
-        show '/new-configuration';
-    },
+    on 'new-configuration' => run { show '/new-configuration'; },
+    on 'cooking.txt'       => run { show '/cooking.txt'; },
 ];
 
 # Commits and test commits

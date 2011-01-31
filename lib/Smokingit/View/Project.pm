@@ -164,4 +164,30 @@ sub branchlist {
     }
 }
 
+use Text::Wrap qw//;
+template '/cooking.txt' => sub {
+    redirect '/' unless get('project');
+    Jifty->web->response->content_type("text/plain");
+    my $out = "";
+    $out .= "What's cooking in ".get('project')->name . ".git\n";
+    $out .= ("-" x (length($out) - 1)) . "\n\n";
+
+    my $trunks = get('project')->trunks;
+    while (my $t = $trunks->next) {
+        $out .= $t->name."\n";
+
+        my $sub = $t->branches;
+        while ($b = $sub->next) {
+            $out .= " "x 4 . $b->name." - ".$b->owner . "\n";
+            $out .= " "x 6 . "[ " . $b->display_status;
+            $out .= " by ". $b->review_by if $b->status eq "needs-review" and $b->review_by;
+            $out .= " ]\n";
+            my $long = Text::Wrap::wrap(" "x 8," "x 8,$b->long_status);
+            $long .= "\n" if length $long;
+            $out .=  "$long\n";
+        }
+    }
+    outs_raw( $out );
+};
+
 1;
