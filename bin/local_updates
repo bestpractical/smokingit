@@ -173,6 +173,7 @@ $worker->register_function(
         $configs->limit( column => "name", operator => "MATCHES", value => $configname )
             if defined $configname and length $configname;
         warn "Found @{[$configs->count]} configs\n";
+        my $tests = 0;
         while (my $config = $configs->next) {
             my %lookup = (
                 project_id       => $commit->project->id,
@@ -185,19 +186,19 @@ $worker->register_function(
                 warn "Re-testing @{[$smoke->id]}\n";
                 $smoke->set_submitted_at(undef);
                 $smoke->set_gearman_process(undef);
-                $smoke->run_smoke;
+                $tests += $smoke->run_smoke;
             } elsif ($branch->id) {
                 $smoke->create(
                     %lookup,
                     from_branch_id => $branch->id,
                 );
                 warn "Smoking new @{[$smoke->id]}\n";
-                $smoke->run_smoke;
+                $tests += $smoke->run_smoke;
             } else {
                 warn "No existing smoke for $sha found, and no branch given\n";
             }
         }
-        return 1;
+        return $tests;
     },
 );
 
