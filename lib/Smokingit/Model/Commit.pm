@@ -133,19 +133,19 @@ sub status {
         } else {
             return ("failing", "Unknown failure");
         }
+    } elsif ($self->{status}) {
+        return $self->{status};
     } else {
+        my %results;
         my $smoked = $self->smoked;
-        my $passing = 0;
-        if ($smoked->count) {
-            while (my $smoke = $smoked->next) {
-                next if $smoke->gearman_process;
-                return "failing" unless $smoke->is_ok;
-                $passing++;
-            }
-            return $passing ? "passing" : "testing";
+        while (my $s = $smoked->next) {
+            my ($st) = $self->status($s);
+            $results{$st}++;
         }
-
-        return "untested";
+        for my $st (qw/broken errors failing parsefail todo passing testing queued/) {
+            $self->{status} ||= $st if $results{$st};
+        }
+        return $self->{status} ||= "untested";
     }
 }
 

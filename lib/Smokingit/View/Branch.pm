@@ -62,18 +62,18 @@ template '/branch' => page {
                         );
                     }
                 }
-                if ($commit->status =~ /^(failing|passing)$/) {
+                if ($commit->status =~ /^(untested|testing|queued)$/) {
+                    span {
+                        { class is "sha" };
+                        $commit->short_sha
+                    }
+                } else {
                     hyperlink(
                         tooltip => $commit->status,
                         class => "sha",
                         url => "/test/".$commit->sha."/",
                         label => $commit->short_sha,
                     );
-                } else {
-                    span {
-                        { class is "sha" };
-                        $commit->short_sha
-                    }
                 }
                 span {{class is "subject"} $commit->subject };
             };
