@@ -84,15 +84,22 @@ sub run_smoke {
 
 sub status {
     my $self = shift;
-    my $config = shift;
+    my $on = shift;
 
-    if ($config) {
+    if ($on) {
         my $result = Smokingit::Model::SmokeResult->new;
-        $result->load_by_cols(
-            project_id => $self->project->id,
-            configuration_id => $config->id,
-            commit_id => $self->id,
-        );
+        if ($on->isa("Smokingit::Model::SmokeResult")) {
+            $result = $on;
+        } elsif ($on->isa("Smokingit::Model::Configuration")) {
+            $result->load_by_cols(
+                project_id => $self->project->id,
+                configuration_id => $on->id,
+                commit_id => $self->id,
+            );
+        } else {
+            die "Unknown argument to Smokingit::Model::Commit->status: $on";
+        }
+
         if (not $result->id) {
             return ("untested", "");
         } elsif ($result->gearman_process) {
