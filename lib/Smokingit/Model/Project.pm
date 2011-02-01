@@ -102,6 +102,7 @@ sub planned_tests {
         value => "NULL"
     );
     $tests->limit( column => "project_id", value => $self->id );
+    $tests->prefetch( name => "commit" );
     my @tests = @{ $tests->items_array_ref };
     @tests = sort { $a->gearman_status->known       <=>  $b->gearman_status->known
                 or  $b->gearman_status->running     <=>  $a->gearman_status->running

@@ -44,6 +44,7 @@ template '/project' => page {
             value => "NULL"
         );
         $tests->limit( column => "project_id", value => get('project')->id );
+        $tests->prefetch( name => "commit" );
         $tests->order_by( { column => "submitted_at", order  => "desc" },
                           { column => "id",           order  => "desc" } );
         $tests->rows_per_page(10);
