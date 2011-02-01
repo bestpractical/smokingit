@@ -11,19 +11,15 @@ framework:
     Host: localhost
     Password: ''
     User: postgres
-    Version: 0.0.1
+    Version: 0.0.2
   DevelMode: 1
   LogLevel: INFO
   Mailer: Sendmail
   MailerArgs: []
   Plugins: 
-    - AdminUI: {}
     - CompressedCSSandJS: {}
     - ErrorTemplates: {}
-    - LetMe: {}
-    - OnlineDocs: {}
     - REST: {}
-    - SkeletonApp: {}
   SkipAccessControl: 1
   Web: 
     BaseURL: http://localhost
