@@ -66,11 +66,6 @@ sub short_sha {
     return substr($self->sha,0,7);
 }
 
-sub is_smoked {
-    my $self = shift;
-    return $self->smoked->count > 0;
-}
-
 sub run_smoke {
     my $self = shift;
     my $config = shift;
@@ -92,6 +87,16 @@ sub run_smoke {
     return $smoke->run_smoke;
 }
 
+sub hash_results {
+    my $self = shift;
+    my $results = $self->prefetched( "smoke_results" );
+    die "$self does not have smoke_results prefetched!"
+        unless $results;
+    $self->{results} = {};
+    $self->{results}{$_->configuration->id} = $_
+        for @{$results->items_array_ref};
+}
+
 sub status {
     my $self = shift;
     my $on = shift;
@@ -101,11 +106,16 @@ sub status {
         if ($on->isa("Smokingit::Model::SmokeResult")) {
             $result = $on;
         } elsif ($on->isa("Smokingit::Model::Configuration")) {
-            $result->load_by_cols(
-                project_id => $self->project->id,
-                configuration_id => $on->id,
-                commit_id => $self->id,
-            );
+            if (exists $self->{results}) {
+                $result = $self->{results}{$on->id}
+                    if exists $self->{results}{$on->id};
+            } else {
+                $result->load_by_cols(
+                    project_id => $self->project->id,
+                    configuration_id => $on->id,
+                    commit_id => $self->id,
+                );
+            }
         } else {
             die "Unknown argument to Smokingit::Model::Commit->status: $on";
         }
@@ -147,10 +157,14 @@ sub status {
         return $self->{status};
     } else {
         my %results;
-        my $smoked = $self->smoked;
-        while (my $s = $smoked->next) {
-            my ($st) = $self->status($s);
-            $results{$st}++;
+        if (exists $self->{results}) {
+            $results{$_}++ for map {$self->status($_)} values %{$self->{results}};
+        } else {
+            my $smoked = Smokingit::Model::SmokeResultCollection->new;
+            $smoked->limit( column => "commit_id", value => $self->id );
+            $smoked->limit( column => "project_id", value => $self->project->id );
+            $results{$self->status($_)}++
+                while $_ = $smoked->next;
         }
         for my $st (qw/broken errors failing todo passing parsefail testing queued/) {
             $self->{status} ||= $st if $results{$st};
@@ -173,25 +187,6 @@ sub long_status {
         broken    => "Unknown failure!"
     );
     return $long{$self->status};
-}
-
-sub smoked {
-    my $self = shift;
-    my $config = shift;
-    if ($config) {
-        my $smoke = Smokingit::Model::SmokeResult->new;
-        $smoke->load_by_cols(
-            project_id => $self->project->id,
-            commit_id => $self->id,
-            configuration_id => $config->id,
-        );
-        return $smoke;
-    } else {
-        my $smoked = Smokingit::Model::SmokeResultCollection->new;
-        $smoked->limit( column => "commit_id", value => $self->id );
-        $smoked->limit( column => "project_id", value => $self->project->id );
-        return $smoked;
-    }
 }
 
 sub parents {

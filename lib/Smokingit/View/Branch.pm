@@ -43,6 +43,7 @@ template '/branch' => page {
         id is "branch-commits";
         class is "commitlist biglist";
         for my $commit (@commits) {
+            $commit->hash_results;
             div {
                 {class is "commit ".$commit->status};
                 for my $config (@configs) {

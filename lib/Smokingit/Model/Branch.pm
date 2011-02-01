@@ -135,10 +135,35 @@ sub commit_list {
 
     my $first = $self->first_commit->sha;
     my $last = $self->current_commit->sha;
-    my @revs = map {chomp; $_} `git rev-list ^$first $last`;
-    push @revs, map {chomp; $_} `git rev-list $first --max-count=11`;
+    my @revs = map {chomp; $_} `git rev-list ^$first $last --max-count=50`;
+    my $left = 50 - @revs; $left = 11 if $left > 11;
+    push @revs, map {chomp; $_} `git rev-list $first --max-count=$left`
+        if $left > 0;
 
-    return map {$self->project->sha($_)} @revs;
+    my $commits = Smokingit::Model::CommitCollection->new;
+    $commits->limit( column => "project_id", value => $self->project->id );
+    $commits->limit( column => "sha", operator => "IN", value => \@revs);
+    my $results = $commits->join(
+        type    => "left",
+        alias1  => "main",
+        column1 => "id",
+        table2  => "smoke_results",
+        column2 => "commit_id",
+        is_distinct => 1,
+    );
+    $commits->limit(
+        leftjoin => $results,
+        column   => "project_id",
+        value    => $self->project->id
+    );
+    $commits->prefetch(
+        name => "smoke_results",
+        alias => $results,
+        class => "Smokingit::Model::SmokeResultCollection",
+    );
+    my %commits;
+    $commits{$_->sha} = $_ while $_ = $commits->next;
+    return map $commits{$_}, @revs;
 }
 
 sub branchpoint {
