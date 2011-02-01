@@ -121,8 +121,9 @@ under '/*' => [
             return;
         }
 
+        return unless $name =~ /^[A-Fa-f0-9]+$/;
         my $commits = Smokingit::Model::CommitCollection->new;
-        $commits->limit( column => 'sha', operator => 'like', value => "$name%" );
+        $commits->limit( column => 'sha', operator => 'STARTSWITH', value => lc($name) );
         redirect '/test/' . $commits->first->sha
             if $commits->count == 1;
     },

@@ -12,6 +12,7 @@ use Smokingit::Record schema {
         type is 'text',
         is mandatory,
         is unique,
+        is case_sensitive,
         is indexed;
 
     column author =>
@@ -47,8 +48,17 @@ sub create {
     $args{$_} = Jifty::DateTime->from_epoch( $args{$_} )
         for qw/authored_time committed_time/;
 
+    $args{sha} = lc $args{sha};
+    die "Not a full SHA!" unless length $args{sha} == 40;
     my ($ok, $msg) = $self->SUPER::create(%args);
     return ($ok. $msg) unless $ok;
+}
+
+sub load_by_cols {
+    my $self = shift;
+    my %cols = @_;
+    $cols{sha} = lc $cols{sha} if $cols{sha};
+    return $self->SUPER::load_by_cols(%cols);
 }
 
 sub short_sha {
