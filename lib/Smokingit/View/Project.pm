@@ -54,7 +54,7 @@ template '/project' => page {
                 class is "commitlist";
                 h2 { "Recent tests" };
                 while (my $test = $tests->next) {
-                    my ($status, $msg) = $test->commit->status($test->configuration);
+                    my ($status, $msg) = $test->commit->status($test);
                     div {
                         class is "commit $status";
                         hyperlink(
@@ -83,7 +83,7 @@ template '/project' => page {
                 class is "commitlist";
                 h2 { "Planned tests" };
                 for my $test (@planned) {
-                    my ($status, $msg, $in) = $test->commit->status($test->configuration);
+                    my ($status, $msg, $in) = $test->commit->status($test);
                     div {
                         class is "commit $status";
                         span {
