@@ -90,8 +90,10 @@ sub run_smoke {
 sub hash_results {
     my $self = shift;
     my $results = $self->prefetched( "smoke_results" );
-    die "$self does not have smoke_results prefetched!"
-        unless $results;
+    unless ($results) {
+        warn "$self does not have smoke_results prefetched!\n";
+        return;
+    }
     $self->{results} = {};
     $self->{results}{$_->configuration->id} = $_
         for @{$results->items_array_ref};

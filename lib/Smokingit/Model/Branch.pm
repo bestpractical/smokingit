@@ -163,7 +163,7 @@ sub commit_list {
     );
     my %commits;
     $commits{$_->sha} = $_ while $_ = $commits->next;
-    return map $commits{$_}, @revs;
+    return map $commits{$_} || $self->project->sha($_), @revs;
 }
 
 sub branchpoint {
