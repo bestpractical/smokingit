@@ -189,6 +189,7 @@ template '/cooking.txt' => sub {
             $long .= "\n" if length $long;
             $out .=  "$long\n";
         }
+        $out .= "\n";
     }
     outs_raw( $out );
 };
