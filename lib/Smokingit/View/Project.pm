@@ -178,6 +178,7 @@ template '/cooking.txt' => sub {
         $out .= $t->name." - " . $t->current_commit->long_status . "\n";
 
         my $sub = $t->branches;
+        $sub->order_by({column => "owner"}, {column => "name"});
         while ($b = $sub->next) {
             $out .= " "x 4 . $b->name." - ".$b->owner . "\n";
             $out .= " "x 6 . "[ " . $b->current_commit->long_status;
