@@ -158,15 +158,19 @@ sub status {
     } elsif ($self->{status}) {
         return $self->{status};
     } else {
-        my %results;
+        my @results;
         if (exists $self->{results}) {
-            $results{$_}++ for map {$self->status($_)} values %{$self->{results}};
+            @results = values %{$self->{results}};
         } else {
             my $smoked = Smokingit::Model::SmokeResultCollection->new;
             $smoked->limit( column => "commit_id", value => $self->id );
             $smoked->limit( column => "project_id", value => $self->project->id );
-            $results{$self->status($_)}++
-                while $_ = $smoked->next;
+            @results = @{$smoked->items_array_ref};
+        }
+        my %results;
+        for my $result (@results) {
+            my ($status) = $self->status($result);
+            $results{$status}++;
         }
         for my $st (qw/broken errors failing todo passing parsefail testing queued/) {
             $self->{status} ||= $st if $results{$st};
