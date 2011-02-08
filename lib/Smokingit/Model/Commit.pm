@@ -173,9 +173,9 @@ sub status {
             $results{$status}++;
         }
         for my $st (qw/broken errors failing todo passing parsefail testing queued/) {
-            $self->{status} ||= $st if $results{$st};
+            return $self->{status} = $st if $results{$st};
         }
-        return $self->{status} ||= "untested";
+        return $self->{status} = "untested";
     }
 }
 
