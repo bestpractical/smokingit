@@ -115,6 +115,14 @@ li {
     font-style: italic;
     text-decoration: none;
 }
+#branch-list li.passing   { list-style-image: url('/static/images/silk/tick.png');            }
+#branch-list li.todo      { list-style-image: url('/static/images/silk/asterisk_orange.png'); }
+#branch-list li.failing   { list-style-image: url('/static/images/silk/cross.png');           }
+#branch-list li.parsefail { list-style-image: url('/static/images/silk/exclamation.png');     }
+#branch-list li.errors    { list-style-image: url('/static/images/silk/error.png');           }
+#branch-list li.testing   { list-style-image: url('/static/images/silk/cog.png');             }
+#branch-list li.queued    { list-style-image: url('/static/images/silk/hourglass.png');       }
+#branch-list li.broken    { list-style-image: url('/static/images/silk/server_error.png');    }
 #right-bar {
   margin-top: 1em;
   border-left: 1px dotted #779;

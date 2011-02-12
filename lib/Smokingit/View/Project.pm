@@ -118,43 +118,32 @@ template '/fragments/project/branch-list' => sub {
         }
 
         $branches->limit( column => "status", value => "master" );
-        $branches->order_by( column => "name" );
-        ul {
-            while (my $b = $branches->next) {
-                li {
-                    hyperlink(
-                        label => $b->name,
-                        url => "branch/" . $b->name,
-                    );
-                    branchlist($b->branches);
-                };
-            }
-        };
+        branchlist($branches, recurse => 1);
 
         $branches->unlimit;
         $branches->limit( column => "project_id", value => get('project_id') );
         $branches->limit( column => "to_merge_into", operator => "IS", value => "NULL" );
         $branches->limit( column => "status", operator => "!=", value => "ignore", entry_aggregator => "AND" );
         $branches->limit( column => "status", operator => "!=", value => "master", entry_aggregator => "AND" );
-        branchlist($branches, 1);
+        branchlist($branches, hline => 1);
 
         $branches->unlimit;
         $branches->limit( column => "project_id", value => get('project_id') );
         $branches->limit( column => "status", operator => "=", value => "ignore" );
-        branchlist($branches, 1);
+        branchlist($branches, hline => 1);
     };
 };
 
 sub branchlist {
-    my ($branches, $hline) = @_;
+    my ($branches, %args) = @_;
     $branches->order_by( column => "name" );
     if ($branches->count) {
-        if ($hline) {
-            div { { class is "hline" } }
-        }
+        div { class is "hline"; }
+            if $args{hline};
         ul {
             while (my $b = $branches->next) {
                 li {
+                    { class is $b->test_status; }
                     hyperlink(
                         label => $b->name,
                         url => "branch/" . $b->name,

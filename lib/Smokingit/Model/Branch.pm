@@ -183,5 +183,10 @@ sub branchpoint {
     return $commit->id ? $commit : undef;
 }
 
+sub test_status {
+    my $self = shift;
+    return $self->current_commit->status;
+}
+
 1;
 
