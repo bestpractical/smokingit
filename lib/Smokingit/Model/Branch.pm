@@ -81,7 +81,7 @@ sub create {
 sub branches {
     my $self = shift;
     my $branches = Smokingit::Model::BranchCollection->new;
-    return $branches unless $self->status eq "master";
+    return $branches unless $self->status eq "master" or $self->status eq "releng";
     $branches->limit( column => "project_id", value => $self->project->id );
     $branches->limit( column => "status", operator => "!=", value => "ignore", entry_aggregator => "AND");
     $branches->limit( column => "status", operator => "!=", value => "master", entry_aggregator => "AND");

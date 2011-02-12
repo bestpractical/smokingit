@@ -148,7 +148,9 @@ sub branchlist {
                         label => $b->name,
                         url => "branch/" . $b->name,
                     );
-                }
+                    branchlist($b->branches, %args)
+                        if $args{recurse};
+                };
             }
         }
     }

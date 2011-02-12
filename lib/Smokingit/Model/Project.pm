@@ -93,6 +93,14 @@ sub trunks {
     return $trunks;
 }
 
+sub trunk_or_relengs {
+    my $self = shift;
+    my $branches = $self->branches;
+    $branches->limit( column => "status", value => "master", entry_aggregator => "or" );
+    $branches->limit( column => "status", value => "releng", entry_aggregator => "or" );
+    return $branches;
+}
+
 sub planned_tests {
     my $self = shift;
     my $tests = Smokingit::Model::SmokeResultCollection->new;
