@@ -164,23 +164,30 @@ template '/cooking.txt' => sub {
     $out .= "What's cooking in ".get('project')->name . ".git\n";
     $out .= ("-" x (length($out) - 1)) . "\n\n";
 
-    my $trunks = get('project')->trunks;
+    my $trunks = get('project')->trunk_or_relengs;
     while (my $t = $trunks->next) {
         $out .= $t->name." - " . $t->current_commit->long_status . "\n";
+        $out .= Text::Wrap::wrap(" "x 4," "x 4,$t->long_status)."\n\n"
+            if $t->long_status;
 
         my $sub = $t->branches;
-        $sub->order_by({column => "owner"}, {column => "name"});
+        $sub->limit( column => "status", operator => "!=", value => "releng", entry_aggregator => "AND");
+        $sub->order_by(
+            { function => "status = 'releng'", order => "desc"},
+            { column   => "owner" },
+            { column   => "name" },
+        );
         while ($b = $sub->next) {
             $out .= " "x 4 . $b->name." - ".$b->owner . "\n";
             $out .= " "x 6 . "[ " . $b->current_commit->long_status;
             $out .= " - " . $b->display_status;
             $out .= " by ". $b->review_by if $b->status eq "needs-review" and $b->review_by;
             $out .= " ]\n";
-            my $long = Text::Wrap::wrap(" "x 8," "x 8,$b->long_status);
-            $long .= "\n" if length $long;
-            $out .=  "$long\n";
+            $out .= Text::Wrap::wrap(" "x 8," "x 8,$b->long_status)."\n"
+                if $b->long_status;
+            $out .=  "\n";
         }
-        $out .= "\n";
+        $out .= "\n" if not $t->long_status and not $sub->count;
     }
     outs_raw( $out );
 };
