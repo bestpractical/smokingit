@@ -8,7 +8,13 @@ template '/branch' => page {
     my $b = get('branch');
     redirect '/' unless $b;
     page_title is $b->name;
-    div {{class is "subtitle"} $b->project->name };
+    div {
+        { class is "subtitle" }
+        hyperlink(
+            label => $b->project->name,
+            url => "/project/".$b->project->name."/",
+        );
+    };
 
     render_region(
         name => "properties",
