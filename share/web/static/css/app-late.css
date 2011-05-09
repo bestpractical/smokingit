@@ -158,7 +158,7 @@ li {
   padding-top: 1.3em;
   width: 35%;
   float: left;
-  height: 6.5em;
+  min-height: 6.5em;
 }
 #long-status.master {
   height: auto;
