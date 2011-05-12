@@ -37,6 +37,19 @@ template '/project' => page {
             );
         };
 
+        div {
+            id is "feeds";
+            h2 { "Feeds" };
+            ul {
+                li {
+                    hyperlink(
+                        label => "What's Cooking",
+                        url   => "cooking.txt",
+                    );
+                };
+            };
+        };
+
         my $tests = Smokingit::Model::SmokeResultCollection->new;
         $tests->limit(
             column => "gearman_process",
