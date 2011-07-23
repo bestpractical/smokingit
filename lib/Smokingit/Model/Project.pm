@@ -167,6 +167,7 @@ sub sync_branches {
             status        => $trunk ? "master" : "ignore",
             long_status   => "",
             to_merge_into => undef,
+            plan_tests    => 0,
         );
         warn "Create failed: $msg" unless $ok;
     }

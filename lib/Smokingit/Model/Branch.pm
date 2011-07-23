@@ -55,9 +55,12 @@ use Smokingit::Record schema {
 sub create {
     my $self = shift;
     my %args = (
-        sha => undef,
+        plan_tests => 1,
+        sha        => undef,
         @_,
     );
+
+    my $plan_tests = delete $args{plan_tests};
 
     # Ensure that we have a tip commit
     my $project = Smokingit::Model::Project->new;
@@ -77,7 +80,7 @@ sub create {
 
     Smokingit->gearman->dispatch_background(
         plan_tests => $self->project->name,
-    );
+    ) if $plan_tests;
 
     return ($ok, $msg);
 }
