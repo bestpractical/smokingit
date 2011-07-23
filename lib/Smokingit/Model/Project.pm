@@ -153,6 +153,7 @@ sub sync_branches {
         $branch->set_current_commit_id($self->sha($new_ref)->id);
     }
 
+    my $test_new = $branches->count ? 1 : 0;
     my $has_master = delete $branches{master};
 
     for my $name (($has_master ? ("master") : ()), sort keys %branches) {
@@ -160,11 +161,14 @@ sub sync_branches {
         my $trunk = ($name eq "master");
         my $sha = $self->repository->ref_sha1("refs/heads/$name");
         my $branch = Smokingit::Model::Branch->new;
+        my $status = $trunk    ? "master"  :
+                     $test_new ? "hacking" :
+                                 "ignore";
         my ($ok, $msg) = $branch->create(
             project_id    => $self->id,
             name          => $name,
             sha           => $sha,
-            status        => $trunk ? "master" : "ignore",
+            status        => $status,
             long_status   => "",
             to_merge_into => undef,
             plan_tests    => 0,
