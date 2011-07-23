@@ -153,7 +153,9 @@ sub sync_branches {
         $branch->set_current_commit_id($self->sha($new_ref)->id);
     }
 
-    for my $name (keys %branches) {
+    my $has_master = delete $branches{master};
+
+    for my $name (($has_master ? ("master") : ()), sort keys %branches) {
         warn "New branch $name\n";
         my $trunk = ($name eq "master");
         my $sha = $self->repository->ref_sha1("refs/heads/$name");
