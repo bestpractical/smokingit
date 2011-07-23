@@ -37,25 +37,7 @@ sub arguments {
     $args->{review_by}{autocompleter} = $self->autocompleter("review_by");
 
     if ($self->record->status eq "ignore" and not $self->record->to_merge_into->id) {
-        my @trunks;
-        while (my $b = $branches->next) {
-            push @trunks, [$b->id, $b->current_commit->sha, $b->name];
-        }
-        local $ENV{GIT_DIR} = $self->record->project->repository_path;
-        my $topic = $self->record->current_commit->sha;
-        my @revlist = map {chomp; $_} `git rev-list $topic @{[map {"^".$_->[1]} @trunks]}`;
-        my $branchpoint;
-        if (@revlist) {
-            $branchpoint = `git rev-parse $revlist[-1]~`;
-            chomp $branchpoint;
-        } else {
-            $branchpoint = $topic;
-        }
-        for my $t (@trunks) {
-            next if `git rev-list --max-count=1 $branchpoint ^$t->[1]` =~ /\S/;
-            $args->{to_merge_into}{default_value} = $t->[0];
-            last;
-        }
+        $args->{to_merge_into}{default_value} = $self->record->guess_merge_into;
     }
     return $self->{__cached_arguments} = $args;
 }

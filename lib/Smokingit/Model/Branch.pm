@@ -78,6 +78,37 @@ sub create {
     return ($ok, $msg);
 }
 
+sub guess_merge_into {
+    my $self = shift;
+
+    my @trunks;
+    my $branches = $self->project->trunk_or_relengs;
+    while (my $b = $branches->next) {
+        push @trunks, [$b->id, $b->current_commit->sha, $b->name];
+    }
+
+    # Find the commit before the first non-trunk commit, which is the
+    # commit this branch was branched off of
+    local $ENV{GIT_DIR} = $self->project->repository_path;
+    my $topic = $self->current_commit->sha;
+    my @revlist = map {chomp; $_} `git rev-list $topic @{[map {"^".$_->[1]} @trunks]}`;
+    my $branchpoint;
+    if (@revlist) {
+        $branchpoint = `git rev-parse $revlist[-1]~`;
+        chomp $branchpoint;
+    } else {
+        $branchpoint = $topic;
+    }
+
+    for my $t (@trunks) {
+        # Find the first trunk which contains all the branch point
+        # (i.e. branchpoint - trunk is the empty set)
+        next if `git rev-list --max-count=1 $branchpoint ^$t->[1]` =~ /\S/;
+        return $t->[0];
+    }
+    return undef;
+}
+
 sub branches {
     my $self = shift;
     my $branches = Smokingit::Model::BranchCollection->new;
