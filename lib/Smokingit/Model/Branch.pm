@@ -71,6 +71,10 @@ sub create {
     my ($ok, $msg) = $self->SUPER::create(%args);
     return ($ok, $msg) unless $ok;
 
+    $self->set_to_merge_into( $self->guess_merge_into )
+        unless $self->project->branches->count == 1
+            or $self->to_merge_into->id;
+
     Smokingit->gearman->dispatch_background(
         plan_tests => $self->project->name,
     );

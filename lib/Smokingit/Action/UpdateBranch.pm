@@ -36,9 +36,6 @@ sub arguments {
     $args->{review_by}{ajax_autocompletes} = 1;
     $args->{review_by}{autocompleter} = $self->autocompleter("review_by");
 
-    if ($self->record->status eq "ignore" and not $self->record->to_merge_into->id) {
-        $args->{to_merge_into}{default_value} = $self->record->guess_merge_into;
-    }
     return $self->{__cached_arguments} = $args;
 }
 
