@@ -136,10 +136,12 @@ sub sync_branches {
         $branches{$_}++;
     }
 
+    my @messages;
     my $branches = $self->branches;
     while (my $branch = $branches->next) {
         if (not $branches{$branch->name}) {
             $branch->delete;
+            push @messages, $branch->name." deleted";
             next;
         }
         delete $branches{$branch->name};
@@ -151,6 +153,7 @@ sub sync_branches {
         my @revs = map {chomp; $_} `git rev-list ^$old_ref $new_ref`;
         $self->sha( $_ ) for reverse @revs;
         $branch->set_current_commit_id($self->sha($new_ref)->id);
+        push @messages, $branch->name." updated with @{[scalar @revs]} commits";
     }
 
     my $test_new = $branches->count ? 1 : 0;
@@ -174,8 +177,12 @@ sub sync_branches {
             plan_tests    => 0,
         );
         warn "Create failed: $msg" unless $ok;
+        push @messages, $branch->name." created, status $status";
     }
-    return $self->schedule_tests;
+
+    my $tests = $self->schedule_tests;
+    push @messages, "$tests commits scheduled for testing" if $tests;
+    return [map {$self->name.": $_"} @messages];
 }
 
 sub schedule_tests {
