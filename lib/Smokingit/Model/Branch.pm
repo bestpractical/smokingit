@@ -162,6 +162,13 @@ sub long_status_html {
     return $html;
 }
 
+sub is_under_review {
+    my $self = shift;
+    return unless $self->status =~ /^(needs-review|awaiting-merge|merged)$/;
+    return unless $self->review_by;
+    return 1;
+}
+
 sub is_tested {
     my $self = shift;
     return $self->status ne "ignore";

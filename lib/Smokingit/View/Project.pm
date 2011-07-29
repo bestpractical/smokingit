@@ -194,7 +194,7 @@ template '/cooking.txt' => sub {
             $out .= " "x 4 . $b->name." - ".$b->owner . "\n";
             $out .= " "x 6 . "[ " . $b->current_commit->long_status;
             $out .= " - " . $b->display_status;
-            $out .= " by ". $b->review_by if $b->status eq "needs-review" and $b->review_by;
+            $out .= " by ". $b->review_by if $b->is_under_review;
             $out .= " ]\n";
             $out .= Text::Wrap::wrap(" "x 8," "x 8,$b->long_status)."\n"
                 if $b->long_status;

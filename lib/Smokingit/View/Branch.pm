@@ -127,7 +127,7 @@ template '/fragments/branch/properties' => sub {
             };
         }
 
-        if ($b->status =~ /^(needs-review|awaiting-merge|merged)$/ ) {
+        if ($b->is_under_review) {
             row {
                 th { "Review by" };
                 cell { $b->review_by };
