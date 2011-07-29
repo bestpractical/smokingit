@@ -66,26 +66,7 @@ template '/project' => page {
                 id is "recent-tests";
                 class is "commitlist";
                 h2 { "Recent tests" };
-                while (my $test = $tests->next) {
-                    my ($status, $msg) = $test->commit->status($test);
-                    div {
-                        class is "commit $status";
-                        hyperlink(
-                            class   => "okbox $status",
-                            label   => "&nbsp;",
-                            escape_label => 0,
-                            url     => "/test/".$test->commit->sha."/".$test->configuration->name,
-                            tooltip => $msg,
-                        );
-                        hyperlink(
-                            tooltip => $msg,
-                            class   => "sha",
-                            url     => "/test/".$test->commit->sha."/".$test->configuration->name,
-                            label   => $test->commit->short_sha,
-                        );
-                        outs( " on ".($test->branch_name || "?") . " using ".$test->configuration->name );
-                    }
-                }
+                test_result($_) while $_ = $tests->next;
             };
         }
 
@@ -95,24 +76,43 @@ template '/project' => page {
                 id is "planned-tests";
                 class is "commitlist";
                 h2 { "Planned tests" };
-                for my $test (@planned) {
-                    my ($status, $msg, $in) = $test->commit->status($test);
-                    div {
-                        class is "commit $status";
-                        span {
-                            attr { class => "okbox $status", title => $msg };
-                            outs_raw($in || "&nbsp;")
-                        };
-                        span {
-                            attr { class => "sha", title => $msg };
-                            $test->commit->short_sha
-                        };
-                        outs( " on ".$test->branch_name . " using ".$test->configuration->name );
-                    }
-                }
+                test_result($_) for @planned;
             }
         }
     };
+};
+
+sub test_result {
+    my $test = shift;
+    my ($status, $msg, $in) = $test->commit->status($test);
+    div {
+        class is "commit $status";
+        if ($status =~ /^(untested|queued|testing|broken)$/) {
+            span {
+                attr { class => "okbox $status", title => $msg };
+                outs_raw($in || "&nbsp;")
+            };
+            span {
+                attr { class => "sha", title => $msg };
+                $test->commit->short_sha
+            };
+        } else {
+            hyperlink(
+                class   => "okbox $status",
+                label   => "&nbsp;",
+                escape_label => 0,
+                url     => "/test/".$test->commit->sha."/".$test->configuration->name,
+                tooltip => $msg,
+            );
+            hyperlink(
+                tooltip => $msg,
+                class   => "sha",
+                url     => "/test/".$test->commit->sha."/".$test->configuration->name,
+                label   => $test->commit->short_sha,
+            );
+        }
+        outs( " on ".$test->branch_name. " using ".$test->configuration->name );
+    }
 };
 
 template '/fragments/project/branch-list' => sub {
