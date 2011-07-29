@@ -19,4 +19,18 @@ since '0.0.3' => sub {
     }
 };
 
+# The branch name beceom a fixed part of the smoke test, and not a
+# reference to the branch id; thus, when branches are removed, the smoke
+# result still knows what branch it was on originally.
+since '0.0.4' => sub {
+    my $tests = Smokingit::Model::SmokeResultCollection->new( current_user => $super );
+    $tests->unlimit;
+    $tests->prefetch( name => "from_branch" );
+    my %branches;
+    while (my $test = $tests->next) {
+        my $branch = $test->prefetched( "from_branch" );
+        $test->set_branch_name($test->from_branch->name);
+    }
+};
+
 1;

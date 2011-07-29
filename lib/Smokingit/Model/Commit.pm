@@ -82,7 +82,7 @@ sub run_smoke {
 
     $smoke->create(
         %lookup,
-        from_branch_id => $branch->id,
+        branch_name => $branch->name,
     );
     return $smoke->run_smoke;
 }

@@ -21,7 +21,12 @@ use Smokingit::Record schema {
         references Smokingit::Model::Commit;
 
     column from_branch_id =>
-        references Smokingit::Model::Branch;
+        references Smokingit::Model::Branch,
+        till '0.0.4';
+
+    column branch_name =>
+        type is 'text',
+        since '0.0.4';
 
     column gearman_process =>
         type is 'text';

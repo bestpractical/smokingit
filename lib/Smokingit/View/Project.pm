@@ -83,7 +83,7 @@ template '/project' => page {
                             url     => "/test/".$test->commit->sha."/".$test->configuration->name,
                             label   => $test->commit->short_sha,
                         );
-                        outs( " on ".($test->from_branch->name || "?") . " using ".$test->configuration->name );
+                        outs( " on ".($test->branch_name || "?") . " using ".$test->configuration->name );
                     }
                 }
             };
@@ -107,7 +107,7 @@ template '/project' => page {
                             attr { class => "sha", title => $msg };
                             $test->commit->short_sha
                         };
-                        outs( " on ".$test->from_branch->name . " using ".$test->configuration->name );
+                        outs( " on ".$test->branch_name . " using ".$test->configuration->name );
                     }
                 }
             }
