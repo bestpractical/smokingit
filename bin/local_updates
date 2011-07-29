@@ -186,12 +186,8 @@ $worker->register_function(
                 $smoke->set_gearman_process(undef);
                 $tests += $smoke->run_smoke;
             } elsif ($branch->id) {
-                $smoke->create(
-                    %lookup,
-                    from_branch_id => $branch->id,
-                );
                 warn "Smoking new @{[$smoke->id]}\n";
-                $tests += $smoke->run_smoke;
+                $tests += $commit->run_smoke( $config, $branch );
             } else {
                 warn "No existing smoke for $sha found, and no branch given\n";
             }
