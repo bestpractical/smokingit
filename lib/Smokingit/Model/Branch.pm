@@ -50,6 +50,10 @@ use Smokingit::Record schema {
 
     column to_merge_into =>
         references Smokingit::Model::Branch;
+
+    column current_actor =>
+        type is 'text',
+        since '0.0.3';
 };
 
 sub create {
@@ -73,6 +77,8 @@ sub create {
 
     my ($ok, $msg) = $self->SUPER::create(%args);
     return ($ok, $msg) unless $ok;
+
+    $self->update_current_actor;
 
     $self->set_to_merge_into( $self->guess_merge_into )
         unless $self->project->branches->count == 1
@@ -128,12 +134,33 @@ sub branches {
     return $branches;
 }
 
+sub update_current_actor {
+    my $self = shift;
+    if ($self->is_under_review) {
+        $self->set_current_actor($self->review_by);
+    } else {
+        $self->set_current_actor($self->owner);
+    }
+}
+
+sub after_set_owner {
+    my $self = shift;
+    $self->update_current_actor;
+}
+
+sub after_set_review_by {
+    my $self = shift;
+    $self->update_current_actor;
+}
+
 sub set_status {
     my $self = shift;
     my $val = shift;
     my $prev_tested = $self->is_tested;
 
     my @ret = $self->_set(column =>'status', value => $val);
+
+    $self->update_current_actor;
 
     if (not $prev_tested and $self->is_tested) {
         # It's no longer ignored; start testing where the tip is now,

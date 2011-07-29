@@ -187,7 +187,7 @@ template '/cooking.txt' => sub {
         $sub->limit( column => "status", operator => "!=", value => "releng", entry_aggregator => "AND");
         $sub->order_by(
             { function => "status = 'releng'", order => "desc"},
-            { column   => "owner" },
+            { column   => "current_actor" },
             { column   => "name" },
         );
         while ($b = $sub->next) {
