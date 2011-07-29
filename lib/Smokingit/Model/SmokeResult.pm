@@ -31,6 +31,10 @@ use Smokingit::Record schema {
     column gearman_process =>
         type is 'text';
 
+    column queued_at =>
+        is timestamp,
+        since '0.0.5';
+
     column submitted_at =>
         is timestamp;
 
@@ -111,6 +115,7 @@ sub run_smoke {
         return 0;
     }
     $self->set_gearman_process($job_id);
+    $self->set_queued_at( Jifty::DateTime->now );
     return 1;
 }
 

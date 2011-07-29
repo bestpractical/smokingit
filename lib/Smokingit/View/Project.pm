@@ -70,13 +70,13 @@ template '/project' => page {
             };
         }
 
-        my @planned = get('project')->planned_tests;
-        if (@planned) {
+        my $planned = get('project')->planned_tests;
+        if ($planned->count) {
             div {
                 id is "planned-tests";
                 class is "commitlist";
                 h2 { "Planned tests" };
-                test_result($_) for @planned;
+                test_result($_) while $_ = $planned->next;
             }
         }
     };

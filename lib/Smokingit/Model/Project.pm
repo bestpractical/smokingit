@@ -110,13 +110,12 @@ sub planned_tests {
         value => "NULL"
     );
     $tests->limit( column => "project_id", value => $self->id );
+    $tests->order_by(
+        { column => "queued_at", order  => "asc" },
+        { column => "id",        order  => "asc" },
+    );
     $tests->prefetch( name => "commit" );
-    my @tests = @{ $tests->items_array_ref };
-    @tests = sort { $a->gearman_status->known       <=>  $b->gearman_status->known
-                or  $b->gearman_status->running     <=>  $a->gearman_status->running
-                or ($b->gearman_status->percent||0) <=> ($a->gearman_status->percent||0)
-                or  $a->id                          <=>  $b->id} @tests;
-    return @tests;
+    return $tests;
 }
 
 sub update_repository {
