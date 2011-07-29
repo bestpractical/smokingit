@@ -23,6 +23,11 @@ under '/project/*' => [
 
     on '' => run {
         my $project = get('project');
+
+        unless (Jifty->web->request->uri =~ m{/$}) {
+            redirect '/project/'.$project->name.'/';
+        }
+
         if ($project->configurations->count) {
             show '/project';
         } else {
