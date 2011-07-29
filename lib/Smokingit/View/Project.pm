@@ -191,11 +191,14 @@ template '/cooking.txt' => sub {
             { column   => "name" },
         );
         while ($b = $sub->next) {
-            $out .= " "x 4 . $b->name." - ".$b->owner . "\n";
-            $out .= " "x 6 . "[ " . $b->current_commit->long_status;
-            $out .= " - " . $b->display_status;
-            $out .= " by ". $b->review_by if $b->is_under_review;
-            $out .= " ]\n";
+            $out .= " "x 4
+                . $b->name." - " . $b->current_commit->long_status
+                . "\n";
+
+            $out .= " "x 6 . "[ "
+                . $b->display_status ." by ". ($b->current_actor || 'someone')
+                . " ]\n";
+
             $out .= Text::Wrap::wrap(" "x 8," "x 8,$b->long_status)."\n"
                 if $b->long_status;
             $out .=  "\n";
