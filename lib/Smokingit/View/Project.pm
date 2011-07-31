@@ -50,16 +50,7 @@ template '/project' => page {
             };
         };
 
-        my $tests = Smokingit::Model::SmokeResultCollection->new;
-        $tests->limit(
-            column => "gearman_process",
-            operator => "IS",
-            value => "NULL"
-        );
-        $tests->limit( column => "project_id", value => get('project')->id );
-        $tests->prefetch( name => "commit" );
-        $tests->order_by( { column => "submitted_at", order  => "desc" },
-                          { column => "id",           order  => "desc" } );
+        my $tests = get('project')->finished_tests;
         $tests->rows_per_page(10);
         if ($tests->count) {
             div {

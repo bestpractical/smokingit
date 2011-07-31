@@ -118,6 +118,22 @@ sub planned_tests {
     return $tests;
 }
 
+sub finished_tests {
+    my $tests = Smokingit::Model::SmokeResultCollection->new;
+    $tests->limit(
+        column => "gearman_process",
+        operator => "IS",
+        value => "NULL"
+    );
+    $tests->limit( column => "project_id", value => $self->id );
+    $tests->order_by(
+        { column => "submitted_at", order  => "desc" },
+        { column => "id",           order  => "desc" },
+    );
+    $tests->prefetch( name => "commit" );
+    return $tests;
+}
+
 sub update_repository {
     my $self = shift;
     local $ENV{GIT_DIR} = $self->repository_path;
