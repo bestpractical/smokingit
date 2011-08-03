@@ -119,6 +119,7 @@ sub planned_tests {
 }
 
 sub finished_tests {
+    my $self = shift;
     my $tests = Smokingit::Model::SmokeResultCollection->new;
     $tests->limit(
         column => "gearman_process",
