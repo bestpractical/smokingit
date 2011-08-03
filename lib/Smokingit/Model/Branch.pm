@@ -260,5 +260,27 @@ sub test_status {
     return $self->current_commit->status;
 }
 
+=head2
+
+Looks at current_actor, owner or review_by (based on single argument) and tries
+to extract the local part of the email address using a stunningly bad regular expression.
+
+When we get user accounts, this will become $branch->current_actor->name
+
+=cut
+
+sub format_user {
+    my ($self, $type) = @_;
+    if ($self->can($type)) {
+        if ( $self->$type =~ m/<(.*?)@/ ) {
+            return $1;
+        }
+    } else {
+        Jifty->log->error("Unable to call $type on a branch");
+    }
+    return 'unknown';
+
+}
+
 1;
 

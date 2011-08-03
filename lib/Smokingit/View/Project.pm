@@ -158,7 +158,7 @@ sub branchlist {
                 li {
                     { class is $b->test_status; }
                     hyperlink(
-                        label => $b->name,
+                        label => $b->name . " (" . $b->format_user('current_actor') . ")",
                         url => "branch/" . $b->name,
                     );
                     branchlist($b->branches, %args)
