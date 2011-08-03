@@ -25,11 +25,12 @@ since '0.0.3' => sub {
 since '0.0.4' => sub {
     my $tests = Smokingit::Model::SmokeResultCollection->new( current_user => $super );
     $tests->unlimit;
+    $tests->columns( "id" );
     $tests->prefetch( name => "from_branch" );
     my %branches;
     while (my $test = $tests->next) {
         my $branch = $test->prefetched( "from_branch" );
-        $test->set_branch_name($test->from_branch->name);
+        $test->set_branch_name($branch->name);
     }
 };
 
