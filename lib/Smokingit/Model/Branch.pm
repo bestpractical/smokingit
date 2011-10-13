@@ -207,9 +207,9 @@ sub commit_list {
 
     my $first = $self->first_commit->sha;
     my $last = $self->current_commit->sha;
-    my @revs = map {chomp; $_} `git rev-list ^$first $last --max-count=50`;
+    my @revs = map {chomp; $_} `git rev-list ^$first $last --topo-order --max-count=50`;
     my $left = 50 - @revs; $left = 11 if $left > 11;
-    push @revs, map {chomp; $_} `git rev-list $first --max-count=$left`
+    push @revs, map {chomp; $_} `git rev-list $first --topo-order --max-count=$left`
         if $left > 0;
 
     my $commits = Smokingit::Model::CommitCollection->new;
@@ -248,7 +248,7 @@ sub branchpoint {
     my $tip   = $self->current_commit->sha;
 
     local $ENV{GIT_DIR} = $self->project->repository_path;
-    my @branch = map {chomp; $_} `git rev-list $tip ^$trunk --max-count=$max`;
+    my @branch = map {chomp; $_} `git rev-list $tip ^$trunk --topo-order --max-count=$max`;
     return unless @branch;
 
     my $commit = $self->project->sha( $branch[-1] );
