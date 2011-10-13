@@ -50,8 +50,10 @@ template '/branch' => page {
         class is "commitlist biglist";
         for my $commit (@commits) {
             $commit->hash_results;
+           my $merge = $commit->subject =~ /^Merge branch /
+               ? "merge" : "nonmerge";
             div {
-                {class is "commit ".$commit->status};
+                {class is "$merge commit ".$commit->status};
                 for my $config (@configs) {
                     my ($status, $msg, $in) = $commit->status($config);
                     if ($status =~ /^(untested|testing|queued)$/) {

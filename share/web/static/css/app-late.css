@@ -318,6 +318,10 @@ li {
   border-bottom: 1px dotted #779;
 }
 
+#branch-commits .nonmerge .subject {
+  margin-left: 2em;
+}
+
 
 /* Commit pages */
 .failingtest .header {
