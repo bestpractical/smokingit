@@ -4,7 +4,7 @@ use warnings;
 package Smokingit::Model::SmokeResult;
 use Jifty::DBI::Schema;
 
-use Storable qw/freeze/;
+use Storable qw/nfreeze/;
 
 use Smokingit::Record schema {
     column project_id =>
@@ -97,7 +97,7 @@ sub run_smoke {
 
     my $job_id = Smokingit->gearman->dispatch_background(
         "run_tests",
-        freeze( {
+        nfreeze( {
             smoke_id       => $self->id,
 
             project        => $self->project->name,
