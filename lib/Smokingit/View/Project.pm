@@ -142,10 +142,33 @@ sub branchlist {
     my ($branches, %args) = @_;
     $branches->order_by( column => "name" );
     if ($branches->count) {
+        $branches->prefetch( name => "current_commit" );
+        my $results = $branches->join(
+            type    => "left",
+            alias1  => "main",
+            column1 => "current_commit_id",
+            table2  => "smoke_results",
+            column2 => "commit_id",
+            is_distinct => 1,
+        );
+        $branches->limit(
+            leftjoin => $results,
+            column   => "project_id",
+            value    => get('project_id'),
+        );
+        $branches->prefetch(
+            name    => "smoke_results",
+            alias   => $results,
+            class   => "Smokingit::Model::SmokeResultCollection",
+            columns => [qw/id gearman_process configuration_id
+                           error is_ok exit wait
+                           passed failed parse_errors todo_passed/],
+        );
         div { class is "hline"; }
             if $args{hline};
         ul {
             while (my $b = $branches->next) {
+                $b->current_commit->hash_results( $b->prefetched("smoke_results") );
                 li {
                     { class is $b->test_status; }
                     hyperlink(

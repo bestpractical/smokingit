@@ -89,7 +89,7 @@ sub run_smoke {
 
 sub hash_results {
     my $self = shift;
-    my $results = $self->prefetched( "smoke_results" );
+    my $results = shift || $self->prefetched( "smoke_results" );
     unless ($results) {
         warn "$self does not have smoke_results prefetched!\n";
         return;
