@@ -28,6 +28,7 @@ use Smokingit::Record schema {
     column status =>
         type is 'text',
         is mandatory,
+        is case_sensitive,
         valid_values are [
             { value => "ignore",         display => "Ignore" },
             { value => "hacking",        display => "Being worked on" },
