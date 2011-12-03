@@ -229,9 +229,12 @@ sub commit_list {
         value    => $self->project->id
     );
     $commits->prefetch(
-        name => "smoke_results",
-        alias => $results,
-        class => "Smokingit::Model::SmokeResultCollection",
+        name    => "smoke_results",
+        alias   => $results,
+        class   => "Smokingit::Model::SmokeResultCollection",
+        columns => [qw/id gearman_process configuration_id
+                       error is_ok exit wait
+                       passed failed parse_errors todo_passed/],
     );
     my %commits;
     $commits{$_->sha} = $_ while $_ = $commits->next;
