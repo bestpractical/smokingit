@@ -103,6 +103,7 @@ sub status {
     my $self = shift;
     my $on = shift;
 
+    my $memcached = Smokingit->memcached;
     if ($on) {
         my $result = Smokingit::Model::SmokeResult->new;
         if ($on->isa("Smokingit::Model::SmokeResult")) {
@@ -122,9 +123,13 @@ sub status {
             die "Unknown argument to Smokingit::Model::Commit->status: $on";
         }
 
-        if (not $result->id) {
-            return ("untested", "");
-        } elsif ($result->gearman_process) {
+        return ("untested", "") unless $result->id;
+
+        my $cache_value = $memcached->get( $result->status_cache_key );
+        return @{$cache_value} if $cache_value;
+
+        my @return;
+        if ($result->gearman_process) {
             my $status = $result->gearman_status;
             if (not $status->known) {
                 return ("broken", "Unknown");
@@ -139,24 +144,26 @@ sub status {
                 return ("queued", "Queued to test");
             }
         } elsif ($result->error) {
-            return ("errors", $result->short_error);
+            @return = ("errors", $result->short_error);
         } elsif ($result->is_ok) {
-            return ("passing", $result->passed . " OK")
+            @return = ("passing", $result->passed . " OK")
         } elsif ($result->failed) {
-            return ("failing", $result->failed . " failed");
+            @return = ("failing", $result->failed . " failed");
         } elsif ($result->parse_errors) {
-            return ("parsefail", $result->parse_errors . " parse errors");
+            @return = ("parsefail", $result->parse_errors . " parse errors");
         } elsif ($result->exit) {
-            return ("failing", "Bad exit status (".$result->exit.")");
+            @return = ("failing", "Bad exit status (".$result->exit.")");
         } elsif ($result->wait) {
-            return ("failing", "Bad wait status (".$result->wait.")");
+            @return = ("failing", "Bad wait status (".$result->wait.")");
         } elsif ($result->todo_passed) {
-            return ("todo", $result->todo_passed . " TODO passed");
+            @return = ("todo", $result->todo_passed . " TODO passed");
         } else {
-            return ("failing", "Unknown failure");
+            @return = ("failing", "Unknown failure");
         }
-    } elsif ($self->{status}) {
-        return $self->{status};
+        $memcached->set( $result->status_cache_key, \@return );
+        return @return;
+    } elsif (my $cache_value = $memcached->get( $self->status_cache_key ) ) {
+        return $cache_value;
     } else {
         my @results;
         if (exists $self->{results}) {
@@ -172,10 +179,15 @@ sub status {
             my ($status) = $self->status($result);
             $results{$status}++;
         }
+        my $status = "untested";
         for my $st (qw/broken errors failing todo passing parsefail testing queued/) {
-            return $self->{status} = $st if $results{$st};
+            next unless $results{$st};
+            $status = $st;
+            last;
         }
-        return $self->{status} = "untested";
+        $memcached->set( $self->status_cache_key, $status)
+            unless $results{broken} or $results{testing} or $results{queued};
+        return $status;
     }
 }
 
@@ -198,6 +210,11 @@ sub long_status {
 sub parents {
     my $self = shift;
     return map {$self->project->sha($_)} split ' ', $self->_value('parents');
+}
+
+sub status_cache_key {
+    my $self = shift;
+    return "status-" . $self->sha;
 }
 
 1;

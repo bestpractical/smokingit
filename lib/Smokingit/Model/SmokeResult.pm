@@ -116,7 +116,18 @@ sub run_smoke {
     }
     $self->set_gearman_process($job_id);
     $self->set_queued_at( Jifty::DateTime->now );
+
+    # If we had a result for this already, we need to clean its status
+    # out of the memcached cache.  Remove both the cache on the commit,
+    # as well as this smoke.
+    Smokingit->memcached->delete( $self->commit->status_cache_key );
+    Smokingit->memcached->delete( $self->status_cache_key );
     return 1;
+}
+
+sub status_cache_key {
+    my $self = shift;
+    return "status-" . $self->commit->sha . "-" . $self->configuration->id;
 }
 
 1;
