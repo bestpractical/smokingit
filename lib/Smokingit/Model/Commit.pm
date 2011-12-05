@@ -186,7 +186,8 @@ sub status {
             last;
         }
         $memcached->set( $self->status_cache_key, $status)
-            unless $results{broken} or $results{testing} or $results{queued};
+            unless $results{broken} or $results{testing} or $results{queued}
+                or $status eq "untested";
         return $status;
     }
 }
