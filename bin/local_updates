@@ -92,7 +92,7 @@ $worker->register_function(
     },
 );
 
-# Synchronous task, from worker
+# Background task, from worker
 $worker->register_function(
     post_results => sub {
         my $job = shift;
