@@ -198,7 +198,7 @@ sub sync_branches {
 
     my $tests = $self->schedule_tests;
     push @messages, "$tests commits scheduled for testing" if $tests;
-    return [map {$self->name.": $_"} @messages];
+    return map {$self->name.": $_"} @messages;
 }
 
 sub schedule_tests {

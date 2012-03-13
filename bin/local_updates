@@ -55,10 +55,10 @@ $worker->register_function(
 
         # Sync up the branches
         Jifty->handle->begin_transaction;
-        my $tests = $project->sync_branches;
+        my @results = $project->sync_branches;
         Jifty->handle->commit;
 
-        return @{$tests} ? join("\n",@{$tests},"") : "No changes\n";
+        return @results ? join("\n",@results,"") : "No changes\n";
     },
 );
 $worker->register_function(
