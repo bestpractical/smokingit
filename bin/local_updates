@@ -6,7 +6,6 @@ use lib 'lib';
 
 use Jifty;
 BEGIN { Jifty->new; }
-use Benchmark qw/timestr/;
 
 use Gearman::Worker;
 my $worker = Gearman::Worker->new(
