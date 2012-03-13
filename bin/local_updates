@@ -31,33 +31,19 @@ $worker->register_function(
         return $ok;
     },
 );
+
+# User or background task
 $worker->register_function(
     sync_project => sub {
         my $job = shift;
         my $project_name = $job->arg;
-        warn "Sync $project_name";
 
         my $project = Smokingit::Model::Project->new;
         $project->load_by_cols( name => $project_name );
         return "No such project: $project_name\n"
             unless $project->id;
 
-        # Update or clone, as need be
-        if (-d $project->repository_path) {
-            warn "Updating $project_name\n";
-            $project->update_repository;
-        } else {
-            warn "Cloning $project_name\n";
-            system("git", "clone", "--quiet", "--mirror",
-                   $project->repository_url,
-                   $project->repository_path);
-        }
-
-        # Sync up the branches
-        Jifty->handle->begin_transaction;
-        my @results = $project->sync_branches;
-        Jifty->handle->commit;
-
+        my @results = $project->sync;
         return @results ? join("\n",@results,"") : "No changes\n";
     },
 );

@@ -141,9 +141,24 @@ sub update_repository {
     `git fetch --all --prune --quiet`;
 }
 
-sub sync_branches {
+sub sync {
     my $self = shift;
 
+    # Start a txn
+    Jifty->handle->begin_transaction;
+
+    # Make sure we have a repository
+    if (-d $self->repository_path) {
+        warn "Updating " . $self->name ."\n";
+        $self->update_repository;
+    } else {
+        warn "Cloning " . $self->name."\n";
+        system("git", "clone", "--quiet", "--mirror",
+               $self->repository_url,
+               $self->repository_path);
+    }
+
+    # Sync up the branches
     local $ENV{GIT_DIR} = $self->repository_path;
 
     my %branches;
@@ -197,6 +212,8 @@ sub sync_branches {
     }
 
     my $tests = $self->schedule_tests;
+    Jifty->handle->commit;
+
     push @messages, "$tests commits scheduled for testing" if $tests;
     return map {$self->name.": $_"} @messages;
 }
