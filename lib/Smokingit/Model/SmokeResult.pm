@@ -110,11 +110,8 @@ sub run_smoke {
         } ),
         { uniq => $self->id },
     );
-    unless ($job_id) {
-        warn "Unable to insert run_tests job!\n";
-        return 0;
-    }
-    $self->set_gearman_process($job_id);
+    warn "Unable to insert run_tests job!\n" unless $job_id;
+    $self->set_gearman_process($job_id || "failed");
     $self->set_queued_at( Jifty::DateTime->now );
 
     # If we had a result for this already, we need to clean its status
@@ -122,7 +119,7 @@ sub run_smoke {
     # as well as this smoke.
     Smokingit->memcached->delete( $self->commit->status_cache_key );
     Smokingit->memcached->delete( $self->status_cache_key );
-    return 1;
+    return $job_id ? 1 : 0;
 }
 
 sub status_cache_key {
