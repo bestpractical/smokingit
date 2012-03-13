@@ -15,21 +15,12 @@ use TAP::Parser::Aggregator;
 my $worker = Gearman::Worker->new(
     job_servers => Jifty->config->app('job_servers'),
 );
+
+# User task, synchronous
 $worker->register_function(
     check_queue => sub {
-        warn "In check_queue";
-        my $job = shift;
-        my $queued = Smokingit::Model::SmokeResultCollection->new;
-        $queued->limit(
-            column => "submitted_at",
-            operator => "IS",
-            value => "NULL",
-        );
-        my $restarted = 0;
-        while (my $smoke = $queued->next) {
-            $restarted += $smoke->run_smoke unless $smoke->gearman_status->known;
-        }
-        return $restarted;
+        my $restarted = Smokingit->check_queue;
+        return "Restarted $restarted tasks\n";
     },
 );
 $worker->register_function(
