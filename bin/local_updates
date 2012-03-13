@@ -21,56 +21,6 @@ $worker->register_function(
     },
 );
 
-# Synchronous task, from worker
-$worker->register_function(
-    post_results => sub {
-        my $job = shift;
-        my $smoke = Smokingit::Model::SmokeResult->new;
-        my ($ok, $msg) = $smoke->post_result($job->arg);
-        warn "$msg\n";
-        return $ok;
-    },
-);
-
-# User or background task
-$worker->register_function(
-    sync_project => sub {
-        my $job = shift;
-        my $project_name = $job->arg;
-
-        my $project = Smokingit::Model::Project->new;
-        $project->load_by_cols( name => $project_name );
-        return "No such project: $project_name\n"
-            unless $project->id;
-
-        my @results = $project->sync;
-        return @results ? join("\n",@results,"") : "No changes\n";
-    },
-);
-$worker->register_function(
-    plan_tests => sub {
-        my $job = shift;
-        my $project_name = $job->arg;
-
-        my $projects = Smokingit::Model::ProjectCollection->new;
-        if ($project_name) {
-            $projects->limit( column => "name", value => $project_name );
-        } else {
-            $projects->unlimit;
-        }
-        return 0 unless $projects->count;
-
-        my $tests = 0;
-        while (my $project = $projects->next) {
-            Jifty->handle->begin_transaction;
-            $tests += $project->schedule_tests;
-            Jifty->handle->commit;
-        }
-
-        return $tests;
-    }
-);
-
 # User task, synchronous
 $worker->register_function(
     retest => sub {
@@ -125,6 +75,58 @@ $worker->register_function(
         }
         return join "", @msgs;
     },
+);
+
+# User or background task
+$worker->register_function(
+    sync_project => sub {
+        my $job = shift;
+        my $project_name = $job->arg;
+
+        my $project = Smokingit::Model::Project->new;
+        $project->load_by_cols( name => $project_name );
+        return "No such project: $project_name\n"
+            unless $project->id;
+
+        my @results = $project->sync;
+        return @results ? join("\n",@results,"") : "No changes\n";
+    },
+);
+
+# Synchronous task, from worker
+$worker->register_function(
+    post_results => sub {
+        my $job = shift;
+        my $smoke = Smokingit::Model::SmokeResult->new;
+        my ($ok, $msg) = $smoke->post_result($job->arg);
+        warn "$msg\n";
+        return $ok;
+    },
+);
+
+# Background task
+$worker->register_function(
+    plan_tests => sub {
+        my $job = shift;
+        my $project_name = $job->arg;
+
+        my $projects = Smokingit::Model::ProjectCollection->new;
+        if ($project_name) {
+            $projects->limit( column => "name", value => $project_name );
+        } else {
+            $projects->unlimit;
+        }
+        return 0 unless $projects->count;
+
+        my $tests = 0;
+        while (my $project = $projects->next) {
+            Jifty->handle->begin_transaction;
+            $tests += $project->schedule_tests;
+            Jifty->handle->commit;
+        }
+
+        return $tests;
+    }
 );
 
 $worker->work while 1;
