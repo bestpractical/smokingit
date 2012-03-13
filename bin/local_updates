@@ -93,19 +93,22 @@ $worker->register_function(
 
         my $commits = Smokingit::Model::CommitCollection->new;
         $commits->limit( column => "sha", operator => "like", value => "$sha%" );
-        return 0 unless $commits->count == 1;
+        return "Unknown SHA\n"   if $commits->count == 0;
+        return "Ambiguous SHA\n" if $commits->count > 1;
+
+        my @msgs;
+        my $msg = sub { warn @_; push @msgs, @_ };
 
         my $commit = $commits->next;
-        warn "Retesting @{[$commit->short_sha]}\n";
 
         my $branch;
 
         my $configs = $commit->project->configurations;
         $configs->limit( column => "name", operator => "MATCHES", value => $configname )
             if defined $configname and length $configname;
-        warn "Found @{[$configs->count]} configs\n";
         my $tests = 0;
         while (my $config = $configs->next) {
+            my $summary = $commit->short_sha . "[" . $config->name ."]";
             my %lookup = (
                 project_id       => $commit->project->id,
                 configuration_id => $config->id,
@@ -114,7 +117,7 @@ $worker->register_function(
             my $smoke = Smokingit::Model::SmokeResult->new;
             $smoke->load_by_cols( %lookup );
             if ($smoke->id) {
-                warn "Re-testing @{[$smoke->id]}\n";
+                $msg->("Re-testing $summary\n");
                 $smoke->set_submitted_at(undef);
                 $smoke->set_gearman_process(undef);
                 $tests += $smoke->run_smoke;
@@ -127,14 +130,14 @@ $worker->register_function(
                         if @branches == 1;
                 }
                 if ($branch->id) {
-                    warn "Testing @{[$commit->short_sha]}[@{[$config->name]}]\n";
+                    $msg->("Testing $summary\n");
                     $tests += $commit->run_smoke( $config, $branch );
                 } else {
-                    warn "No existing smoke for @{[$commit->short_sha]} found, and can't determine branch\n";
+                    $msg->("No existing smoke for $summary found, and can't determine branch\n");
                 }
             }
         }
-        return $tests;
+        return join "", @msgs;
     },
 );
 
