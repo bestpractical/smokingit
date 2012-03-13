@@ -85,10 +85,11 @@ $worker->register_function(
     }
 );
 
+# User task, synchronous
 $worker->register_function(
     retest => sub {
         my $job = shift;
-        my ($sha,$configname,$branchname) = $job->arg =~ /^([0-9a-fA-F]+)(?:\s*\[(.*)\])?(?:\s*,\s*(.*))?/;
+        my ($sha,$configname) = $job->arg =~ /^([0-9a-fA-F]+)(?:\s*\[(.*)\])?/;
 
         my $commits = Smokingit::Model::CommitCollection->new;
         $commits->limit( column => "sha", operator => "like", value => "$sha%" );
@@ -97,10 +98,7 @@ $worker->register_function(
         my $commit = $commits->next;
         warn "Retesting @{[$commit->short_sha]}\n";
 
-        my $branch = Smokingit::Model::Branch->new;
-        $branch->load_by_cols( project_id => $commit->project->id, name => $branchname )
-            if $branchname;
-        warn "Invalid branch name $branchname given\n" if $branchname and not $branch->id;
+        my $branch;
 
         my $configs = $commit->project->configurations;
         $configs->limit( column => "name", operator => "MATCHES", value => $configname )
@@ -120,11 +118,20 @@ $worker->register_function(
                 $smoke->set_submitted_at(undef);
                 $smoke->set_gearman_process(undef);
                 $tests += $smoke->run_smoke;
-            } elsif ($branch->id) {
-                warn "Smoking new @{[$smoke->id]}\n";
-                $tests += $commit->run_smoke( $config, $branch );
             } else {
-                warn "No existing smoke for $sha found, and no branch given\n";
+                # Guess which branch
+                unless ($branch) {
+                    $branch = Smokingit::Model::Branch->new;
+                    my @branches = $commit->branches;
+                    $branch->load_by_cols( name => $branches[0], project_id => $commit->project->id)
+                        if @branches == 1;
+                }
+                if ($branch->id) {
+                    warn "Testing @{[$commit->short_sha]}[@{[$config->name]}]\n";
+                    $tests += $commit->run_smoke( $config, $branch );
+                } else {
+                    warn "No existing smoke for @{[$commit->short_sha]} found, and can't determine branch\n";
+                }
             }
         }
         return $tests;

@@ -213,6 +213,18 @@ sub parents {
     return map {$self->project->sha($_)} split ' ', $self->_value('parents');
 }
 
+sub branches {
+    my $self = shift;
+
+    my $sha = $self->sha;
+
+    local $ENV{GIT_DIR} = $self->project->repository_path;
+    my @branches = map {s/^\s*(\*\s*)?//;chomp;$_}
+        `git branch --contains $sha`;
+
+    return @branches;
+}
+
 sub status_cache_key {
     my $self = shift;
     return "status-" . $self->sha;
