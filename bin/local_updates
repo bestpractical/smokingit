@@ -128,4 +128,12 @@ $worker->register_function(
     }
 );
 
+# Schedule some basic maintenance
+Smokingit->gearman->dispatch_background( check_queue => 1 );
+
+my $projects = Smokingit::Model::ProjectCollection->new;
+$projects->unlimit;
+Smokingit->gearman->dispatch_background( sync_project => $_->name )
+    while $_ = $projects->next;
+
 $worker->work while 1;
