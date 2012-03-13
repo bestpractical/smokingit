@@ -6,12 +6,9 @@ use lib 'lib';
 
 use Jifty;
 BEGIN { Jifty->new; }
-use Storable qw/thaw/;
 use Benchmark qw/timestr/;
 
 use Gearman::Worker;
-use TAP::Parser::Aggregator;
-
 my $worker = Gearman::Worker->new(
     job_servers => Jifty->config->app('job_servers'),
 );
@@ -23,68 +20,15 @@ $worker->register_function(
         return "Restarted $restarted tasks\n";
     },
 );
+
+# Synchronous task, from worker
 $worker->register_function(
     post_results => sub {
         my $job = shift;
-        my %result = %{ thaw( $job->arg ) };
-
-        # Properties to extract from the aggregator
-        my @props =
-            qw/failed
-               parse_errors
-               passed
-               planned
-               skipped
-               todo
-               todo_passed
-               wait
-               exit/;
-
-        # Aggregator might not exist if we had a configure failure
-        my $a = $result{aggregator};
-        if ($a) {
-            $result{$_} = $a->$_ for @props;
-            $result{is_ok}      = not($a->has_problems);
-            $result{elapsed}    = $a->elapsed->[0];
-            $result{error}      = undef;
-        } else {
-            # Unset the existing data if there was a fail
-            $result{$_} = undef for @props, "is_ok", "elapsed";
-        }
-        $result{submitted_at} = Jifty::DateTime->now;
-
-        # Find the smoke
-        Jifty->handle->begin_transaction;
-        my $smokeid = delete $result{smoke_id};
         my $smoke = Smokingit::Model::SmokeResult->new;
-        $smoke->load( $smokeid );
-        if (not $smoke->id) {
-            warn "Invalid smoke ID: $smokeid\n";
-            return 0;
-        } elsif (not $smoke->gearman_process) {
-            warn "Smoke report on $smokeid which wasn't being smoked? (last report at @{[$smoke->submitted_at]})\n";
-            return 0;
-        }
-
-        # Update with the new data
-        for my $key (keys %result) {
-            my $method = "set_$key";
-            $smoke->$method($result{$key});
-        }
-        # Mark as no longer smoking
-        $smoke->set_gearman_process(undef);
-
-        # And commit all of that
-        Jifty->handle->commit;
-
-        warn "Test result for "
-            . $smoke->project->name
-            ." ". $smoke->commit->short_sha
-            ." using ". $smoke->configuration->name
-            ." on ". $smoke->branch_name
-            .": ".($smoke->is_ok ? "OK" : "NOT OK")."\n";
-
-        return 1;
+        my ($ok, $msg) = $smoke->post_result($job->arg);
+        warn "$msg\n";
+        return $ok;
     },
 );
 $worker->register_function(
