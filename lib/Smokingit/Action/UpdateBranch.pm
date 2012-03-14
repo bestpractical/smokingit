@@ -47,11 +47,6 @@ sub autocompleter {
         my $current = shift;
         my %results;
 
-        my $commits = Smokingit::Model::CommitCollection->new;
-        $commits->limit( column => 'project_id', value => $self->record->project->id );
-        $commits->limit( column => 'author', operator => 'MATCHES', value => $current );
-        $results{$_}++ for $commits->distinct_column_values("author");
-
         for my $column (qw/owner review_by/) {
             my $branches = Smokingit::Model::BranchCollection->new;
             $branches->limit(
@@ -62,6 +57,13 @@ sub autocompleter {
             $results{$_}++ for $branches->distinct_column_values($column);
         }
         delete $results{$self->record->$skip};
+
+        unless (keys %results) {
+            my $commits = Smokingit::Model::CommitCollection->new;
+            $commits->limit( column => 'project_id', value => $self->record->project->id );
+            $commits->limit( column => 'author', operator => 'MATCHES', value => $current );
+            $results{$_}++ for $commits->distinct_column_values("author");
+        }
 
         my @results = sort keys %results;
         return if @results == 1 and $results[0] eq $current;
