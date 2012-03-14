@@ -56,7 +56,7 @@ sub autocompleter {
             );
             $results{$_}++ for $branches->distinct_column_values($column);
         }
-        delete $results{$self->record->$skip};
+        delete $results{$self->record->$skip} if $self->record->$skip;
 
         unless (keys %results) {
             my $commits = Smokingit::Model::CommitCollection->new;
