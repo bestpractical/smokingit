@@ -112,8 +112,8 @@ sub run_smoke {
         { uniq => $self->id },
     );
     warn "Unable to insert run_tests job!\n" unless $job_id;
-    $self->set_gearman_process($job_id || "failed");
-    $self->set_queued_at( Jifty::DateTime->now );
+    $self->as_superuser->set_gearman_process($job_id || "failed");
+    $self->as_superuser->set_queued_at( Jifty::DateTime->now );
 
     # If we had a result for this already, we need to clean its status
     # out of the memcached cache.  Remove both the cache on the commit,

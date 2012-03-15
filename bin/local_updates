@@ -53,8 +53,8 @@ $worker->register_function(
             $smoke->load_by_cols( %lookup );
             if ($smoke->id) {
                 $msg->("Re-testing $summary\n");
-                $smoke->set_submitted_at(undef);
-                $smoke->set_gearman_process(undef);
+                $smoke->as_superuser->set_submitted_at(undef);
+                $smoke->as_superuser->set_gearman_process(undef);
                 $tests += $smoke->run_smoke;
             } else {
                 # Guess which branch
@@ -82,7 +82,9 @@ $worker->register_function(
         my $job = shift;
         my $project_name = $job->arg;
 
-        my $project = Smokingit::Model::Project->new;
+        my $project = Smokingit::Model::Project->new(
+            current_user => Smokingit::CurrentUser->superuser,
+        );
         $project->load_by_cols( name => $project_name );
         return "No such project: $project_name\n"
             unless $project->id;
@@ -96,7 +98,9 @@ $worker->register_function(
 $worker->register_function(
     post_results => sub {
         my $job = shift;
-        my $smoke = Smokingit::Model::SmokeResult->new;
+        my $smoke = Smokingit::Model::SmokeResult->new(
+            current_user => Smokingit::CurrentUser->superuser,
+        );
         my ($ok, $msg) = $smoke->post_result($job->arg);
         warn "$msg\n";
         return $ok;
@@ -109,7 +113,9 @@ $worker->register_function(
         my $job = shift;
         my $project_name = $job->arg;
 
-        my $projects = Smokingit::Model::ProjectCollection->new;
+        my $projects = Smokingit::Model::ProjectCollection->new(
+            current_user => Smokingit::CurrentUser->superuser,
+        );
         if ($project_name) {
             $projects->limit( column => "name", value => $project_name );
         } else {

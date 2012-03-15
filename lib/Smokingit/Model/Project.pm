@@ -60,7 +60,11 @@ sub sha {
     my $sha = shift;
     local $ENV{GIT_DIR} = $self->repository_path;
     my $commit = Smokingit::Model::Commit->new;
-    $commit->load_or_create( project_id => $self->id, sha => $sha );
+    $commit->load_by_cols( project_id => $self->id, sha => $sha );
+    return $commit if $commit->id;
+
+    $commit->as_superuser->create( project_id => $self->id, sha => $sha );
+    $commit->load_by_cols( project_id => $self->id, sha => $sha );
     return $commit;
 }
 

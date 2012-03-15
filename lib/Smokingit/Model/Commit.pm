@@ -77,7 +77,9 @@ sub run_smoke {
         configuration_id => $config->id,
         commit_id        => $self->id,
     );
-    my $smoke = Smokingit::Model::SmokeResult->new;
+    my $smoke = Smokingit::Model::SmokeResult->new(
+        current_user => Smokingit::CurrentUser->superuser,
+    );
     $smoke->load_by_cols( %lookup );
     return 0 if $smoke->id;
 
