@@ -11,7 +11,7 @@ framework:
     Host: localhost
     Password: ''
     User: postgres
-    Version: 0.0.5
+    Version: 0.0.6
   DevelMode: 1
   LogLevel: INFO
   Mailer: Sendmail
@@ -20,6 +20,10 @@ framework:
     - CompressedCSSandJS: {}
     - ErrorTemplates: {}
     - REST: {}
+    - Authentication::Password:
+        login_by: username
+        nav_menu: 0
+        signup: 0
   SkipAccessControl: 1
   Web: 
     BaseURL: http://localhost
