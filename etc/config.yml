@@ -24,7 +24,7 @@ framework:
         login_by: username
         nav_menu: 0
         signup: 0
-  SkipAccessControl: 1
+  SkipAccessControl: 0
   Web: 
     BaseURL: http://localhost
     DataDir: var/mason

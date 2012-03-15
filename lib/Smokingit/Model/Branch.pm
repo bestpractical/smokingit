@@ -6,7 +6,8 @@ use Jifty::DBI::Schema;
 
 use Smokingit::Record schema {
     column project_id =>
-        references Smokingit::Model::Project;
+        references Smokingit::Model::Project,
+        is protected;
 
     column name =>
         type is 'text',
@@ -14,16 +15,20 @@ use Smokingit::Record schema {
         label is _("Branch name");
 
     column first_commit_id =>
-        references Smokingit::Model::Commit;
+        references Smokingit::Model::Commit,
+        is protected;
 
     column current_commit_id =>
-        references Smokingit::Model::Commit;
+        references Smokingit::Model::Commit,
+        is protected;
 
     column tested_commit_id =>
-        references Smokingit::Model::Commit;
+        references Smokingit::Model::Commit,
+        is protected;
 
     column last_status_update =>
-        references Smokingit::Model::Commit;
+        references Smokingit::Model::Commit,
+        is protected;
 
     column status =>
         type is 'text',
@@ -54,7 +59,8 @@ use Smokingit::Record schema {
 
     column current_actor =>
         type is 'text',
-        since '0.0.3';
+        since '0.0.3',
+        is protected;
 };
 
 sub create {
@@ -284,6 +290,17 @@ sub format_user {
     }
     return 'unknown';
 
+}
+
+sub current_user_can {
+    my $self  = shift;
+    my $right = shift;
+    my %args  = (@_);
+
+    return 1 if $right eq 'read';
+    return 1 if $right eq 'update' and $self->current_user->id;
+
+    return $self->SUPER::current_user_can($right => %args);
 }
 
 1;

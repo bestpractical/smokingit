@@ -36,6 +36,7 @@ use Smokingit::Record schema {
     column body =>
         type is 'text';
 };
+sub is_protected {1}
 
 sub create {
     my $self = shift;
@@ -228,6 +229,16 @@ sub branches {
 sub status_cache_key {
     my $self = shift;
     return "status-" . $self->sha;
+}
+
+sub current_user_can {
+    my $self  = shift;
+    my $right = shift;
+    my %args  = (@_);
+
+    return 1 if $right eq 'read';
+
+    return $self->SUPER::current_user_can($right => %args);
 }
 
 1;

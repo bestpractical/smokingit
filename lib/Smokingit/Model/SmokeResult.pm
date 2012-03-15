@@ -60,6 +60,7 @@ use Smokingit::Record schema {
 
     column elapsed      => type is 'integer';
 };
+sub is_protected {1}
 
 sub short_error {
     my $self = shift;
@@ -188,6 +189,17 @@ sub post_result {
              ." using ". $self->configuration->name
              ." on ". $self->branch_name
              .": ".($self->is_ok ? "OK" : "NOT OK"));
+}
+
+
+sub current_user_can {
+    my $self  = shift;
+    my $right = shift;
+    my %args  = (@_);
+
+    return 1 if $right eq 'read';
+
+    return $self->SUPER::current_user_can($right => %args);
 }
 
 1;

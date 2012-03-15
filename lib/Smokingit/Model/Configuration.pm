@@ -47,5 +47,18 @@ sub create {
     return ($ok, $msg);
 }
 
+sub current_user_can {
+    my $self  = shift;
+    my $right = shift;
+    my %args  = (@_);
+
+    return 1 if $right eq 'create' and $self->current_user->id;
+    return 1 if $right eq 'read';
+    return 1 if $right eq 'update' and $self->current_user->id;
+    return 1 if $right eq 'delete' and $self->current_user->id;
+
+    return $self->SUPER::current_user_can($right => %args);
+}
+
 1;
 
