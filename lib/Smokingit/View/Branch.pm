@@ -100,7 +100,7 @@ template '/fragments/branch/properties' => sub {
         { id is "branch-properties" };
         js_handlers {
             onclick => {replace_with => "/fragments/branch/edit" }
-        };
+        } if $b->current_user_can("update");
 
         row {
             th { "Status" };
@@ -149,6 +149,10 @@ template '/fragments/branch/properties' => sub {
 template '/fragments/branch/edit' => sub {
     my $b = Smokingit::Model::Branch->new;
     $b->load( get('branch_id') );
+
+    redirect "/fragments/branch/properties"
+        unless $b->current_user_can("update");
+
     my $status = $b->status;
     form {
         my $update = $b->as_update_action( moniker => "update" );

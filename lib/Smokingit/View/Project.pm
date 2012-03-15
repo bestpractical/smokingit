@@ -24,17 +24,22 @@ template '/project' => page {
             ul {
                 while (my $c = $configs->next) {
                     li {
-                        hyperlink(
-                            label => $c->name,
-                            url => "config/" . $c->name,
-                        );
+                        if ($c->current_user_can("update")) {
+                            hyperlink(
+                                label => $c->name,
+                                url => "config/" . $c->name
+                            );
+                        } else {
+                            outs $c->name;
+                        }
                     };
                 }
             };
+            my $config = Smokingit::Model::Configuration->new;
             hyperlink(
                 label => "New configuration",
                 url => "new-configuration",
-            );
+            ) if $config->current_user_can("create");
         };
 
         div {
