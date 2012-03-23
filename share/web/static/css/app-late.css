@@ -279,15 +279,15 @@ li {
   font-size: 145%;
 }
 
+.commitlist .commit.untested  .sha { color: #555; }
 .commitlist .commit.passing   .sha { color: #191; }
-.commitlist .commit.failing   .sha { color: #f11; }
 .commitlist .commit.todo      .sha { color: #fa0; }
+.commitlist .commit.failing   .sha { color: #f11; }
 .commitlist .commit.parsefail .sha { color: #f11; }
 .commitlist .commit.errors    .sha { color: #f11; }
 .commitlist .commit.testing   .sha { color: #11f; }
 .commitlist .commit.queued    .sha { color: #115; }
 .commitlist .commit.broken    .sha { color: #f11; }
-.commitlist .commit.untested  .sha { color: #555; }
 
 .commitlist .okbox {
   float: left;
