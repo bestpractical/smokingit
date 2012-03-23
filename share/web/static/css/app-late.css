@@ -279,7 +279,7 @@ li {
   font-size: 145%;
 }
 
-.commitlist .commit.passing   .sha { color: #1c1; }
+.commitlist .commit.passing   .sha { color: #191; }
 .commitlist .commit.failing   .sha { color: #f11; }
 .commitlist .commit.todo      .sha { color: #fa0; }
 .commitlist .commit.parsefail .sha { color: #f11; }
