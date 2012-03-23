@@ -145,7 +145,6 @@ template '/fragments/project/branch-list' => sub {
 
 sub branchlist {
     my ($branches, %args) = @_;
-    $branches->order_by( column => "name" );
     if ($branches->count) {
         $branches->prefetch( name => "current_commit" );
         my $results = $branches->join(
@@ -169,6 +168,13 @@ sub branchlist {
                            error is_ok exit wait
                            passed failed parse_errors todo_passed/],
         );
+        my @order = ({ column   => "name" });
+        if (Jifty->web->current_user->id) {
+            my $actor = '%<'.Jifty->web->current_user->user_object->email.'>';
+            $actor = Jifty->handle->quote_value($actor);
+            unshift @order, { function => "main.current_actor like $actor", order => 'DESC' };
+        }
+        $branches->order_by( @order );
         div { class is "hline"; }
             if $args{hline};
         ul {
