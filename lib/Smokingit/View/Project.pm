@@ -108,10 +108,10 @@ sub test_result {
     my $test = shift;
     my ($status, $msg, $in) = $test->commit->status($test);
     div {
-        class is "commit $status";
+        class is $test->commit->sha." config-".$test->configuration->id." commit $status";
         if ($status =~ /^(untested|queued|testing|broken)$/) {
             span {
-                attr { class => "okbox $status", title => $msg };
+                attr { class => "okbox $status config-".$test->configuration->id, title => $msg };
                 outs_raw($in || "&nbsp;")
             };
             span {
@@ -207,7 +207,7 @@ sub branchlist {
             while (my $b = $branches->next) {
                 $b->current_commit->hash_results( $b->prefetched("smoke_results") );
                 li {
-                    { class is $b->test_status; }
+                    { class is $b->test_status . " " . $b->current_commit->sha; }
                     hyperlink(
                         label => $b->name . " (" . $b->format_user('current_actor') . ")",
                         url => "branch/" . $b->name,

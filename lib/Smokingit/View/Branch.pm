@@ -53,17 +53,17 @@ template '/branch' => page {
             my $merge = $commit->subject =~ /^Merge branch /
                 ? "merge" : "nonmerge";
             div {
-                {class is "$merge commit ".$commit->status};
+                {class is $commit->sha." $merge commit ".$commit->status};
                 for my $config (@configs) {
                     my ($status, $msg, $in) = $commit->status($config);
                     if ($status =~ /^(untested|testing|queued)$/) {
                         span {
-                            attr { class => "okbox $status", title => $msg };
+                            attr { class => "okbox $status config-".$config->id, title => $msg };
                             outs_raw($in ||"&nbsp;")
                         };
                     } else {
                         hyperlink(
-                            class => "okbox $status",
+                            class => "okbox $status config-".$config->id,
                             label => "&nbsp;",
                             escape_label => 0,
                             url   => "/test/".$commit->sha."/".$config->name,
