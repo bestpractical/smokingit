@@ -3,6 +3,7 @@ use warnings;
 
 package Smokingit::Model::SmokeResult;
 use Jifty::DBI::Schema;
+use Smokingit::Status;
 
 use Smokingit::Record schema {
     column project_id =>
@@ -91,6 +92,7 @@ sub run_smoke {
               $self->commit->short_sha
           )."\n";
 
+    my $status = Smokingit::Status->new( $self );
     Jifty->rpc->call(
         name => "run_tests",
         args => {
@@ -108,12 +110,15 @@ sub run_smoke {
             my $ok = shift;
             $self->as_superuser->set_queue_status($ok ? "queued" : "broken");
             $self->as_superuser->set_queued_at( Jifty::DateTime->now );
+            $self->load($self->id);
 
             # If we had a result for this already, we need to clean its status
             # out of the memcached cache.  Remove both the cache on the commit,
             # as well as this smoke.
             Smokingit->memcached->delete( $self->commit->status_cache_key );
             Smokingit->memcached->delete( $self->status_cache_key );
+
+            $status->publish;
         },
     );
 
@@ -157,6 +162,8 @@ sub post_result {
     }
     $result{submitted_at} = Jifty::DateTime->now;
 
+    my $status = Smokingit::Status->new( $self );
+
     # Find the smoke
     Jifty->handle->begin_transaction;
     my $smokeid = delete $result{smoke_id};
@@ -177,6 +184,8 @@ sub post_result {
 
     # And commit all of that
     Jifty->handle->commit;
+
+    $status->publish;
 
     return (1, "Test result for "
              . $self->project->name

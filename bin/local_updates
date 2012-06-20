@@ -85,18 +85,19 @@ $listen->poll(
             current_user => Smokingit::CurrentUser->superuser,
         );
         $smoke->load( $message{smoke_id} );
-        my $status = $message{status};
-        if ($status eq "started") {
+        my $status = Smokingit::Status->new( $smoke );
+        if ($message{status} eq "started") {
             $smoke->set_queue_status("Processing commit");
-        } elsif ($status eq "configuring") {
+        } elsif ($message{status} eq "configuring") {
             $smoke->set_queue_status("Configuring");
-        } elsif ($status eq "testing") {
+        } elsif ($message{status} eq "testing") {
             my $fraction = $message{complete}/($message{total} || 1);
             $smoke->set_queue_status(
                 int($fraction*100) ."% complete");
         } else {
-            warn "Unknown worker status: $status";
+            warn "Unknown worker status: $message{status}";
         }
+        $status->publish;
     }
 );
 
