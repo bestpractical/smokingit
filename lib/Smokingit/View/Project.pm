@@ -55,27 +55,53 @@ template '/project' => page {
             };
         };
 
-        my $tests = get('project')->finished_tests;
-        $tests->rows_per_page(10);
-        if ($tests->count) {
-            div {
-                id is "recent-tests";
-                class is "commitlist";
-                h2 { "Recent tests" };
-                test_result($_) while $_ = $tests->next;
-            };
-        }
+        render_region(
+            name => "finished",
+            path => "/fragments/project/finished",
+            defaults => { project_id => get('project')->id },
+        );
 
-        my $planned = get('project')->planned_tests;
-        if ($planned->count) {
-            div {
-                id is "planned-tests";
-                class is "commitlist";
-                h2 { "Planned tests" };
-                test_result($_) while $_ = $planned->next;
-            }
-        }
+        render_region(
+            name => "planned",
+            path => "/fragments/project/planned",
+            defaults => { project_id => get('project')->id },
+        );
     };
+};
+
+template '/fragments/project/finished' => sub {
+    my $project = Smokingit::Model::Project->new;
+    $project->load( get('project_id') );
+
+    my $tests = $project->finished_tests;
+    $tests->rows_per_page(10);
+    div {
+        id is "recent-tests";
+        h2 { "Recent tests" };
+        span {
+            class is "commitlist";
+            test_result($_) while $_ = $tests->next;
+        };
+    };
+    Jifty->subs->update_on( topic => "test_queued" );
+    Jifty->subs->update_on( topic => "test_result" );
+};
+
+template '/fragments/project/planned' => sub {
+    my $project = Smokingit::Model::Project->new;
+    $project->load( get('project_id') );
+
+    my $planned = $project->planned_tests;
+    div {
+        id is "planned-tests";
+        h2 { "Planned tests" };
+        span {
+            class is "commitlist";
+            test_result($_) while $_ = $planned->next;
+        };
+    };
+    Jifty->subs->update_on( topic => "test_queued" );
+    Jifty->subs->update_on( topic => "test_result" );
 };
 
 sub test_result {
