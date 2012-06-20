@@ -125,6 +125,30 @@ Jifty->rpc->register(
     }
 );
 
+my $listen = Jifty->bus->new_listener;
+$listen->subscribe( Jifty->bus->topic("worker_progress") );
+$listen->poll(
+    sub {
+        my %message = %{ shift() };
+        my $smoke = Smokingit::Model::SmokeResult->new(
+            current_user => Smokingit::CurrentUser->superuser,
+        );
+        $smoke->load( $message{smoke_id} );
+        my $status = $message{status};
+        if ($status eq "started") {
+            $smoke->set_queue_status("Processing commit");
+        } elsif ($status eq "configuring") {
+            $smoke->set_queue_status("Configuring");
+        } elsif ($status eq "testing") {
+            my $fraction = $message{complete}/($message{total} || 1);
+            $smoke->set_queue_status(
+                int($fraction*100) ."% complete");
+        } else {
+            warn "Unknown worker status: $status";
+        }
+    }
+);
+
 # Schedule some basic maintenance
 my $projects = Smokingit::Model::ProjectCollection->new;
 $projects->unlimit;

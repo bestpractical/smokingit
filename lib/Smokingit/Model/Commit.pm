@@ -130,7 +130,9 @@ sub status {
 
         my @return;
         if (my $status = $result->queue_status) {
-            if ($status eq "queued") {
+            if ($status =~ /^(\d+%) complete$/) {
+                return ("testing", $status, $1);
+            } elsif ($status eq "queued") {
                 return ("queued", "Queued to test");
             } elsif ($status eq "broken") {
                 return ("broken", "Failed to queue!");

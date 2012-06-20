@@ -17,6 +17,7 @@ framework:
   Mailer: Sendmail
   MailerArgs: []
   Plugins:
+    - PubSub: {}
     - RPC: {}
     - CompressedCSSandJS: {}
     - ErrorTemplates: {}
