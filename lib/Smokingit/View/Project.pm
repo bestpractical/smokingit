@@ -115,6 +115,10 @@ sub test_result {
         class is $test->commit->sha." config-".$test->configuration->id." commit $status";
         if ($status =~ /^(untested|queued|testing|broken)$/) {
             span {
+                attr { class => "spacer" };
+                outs_raw("&nbsp;")
+            } if Jifty->web->current_user->id;
+            span {
                 attr { class => "okbox $status config-".$test->configuration->id, title => $msg };
                 outs_raw($in || "&nbsp;")
             };
@@ -123,6 +127,15 @@ sub test_result {
                 $test->commit->short_sha
             };
         } else {
+            span {
+                { class is "retestme" };
+                my $sha = $test->commit->sha;
+                my $config = $test->configuration->id;
+                js_handlers {
+                    onclick => "pubsub.send({type:'jifty.action',class:'Test',arguments:{commit:'$sha\[$config]'}})"
+                };
+                outs_raw "&nbsp;";
+            } if Jifty->web->current_user->id;
             hyperlink(
                 class   => "okbox $status",
                 label   => "&nbsp;",

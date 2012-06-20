@@ -75,6 +75,15 @@ template '/branch' => page {
                         );
                     }
                 }
+                span {
+                    { class is ( $commit->status eq "untested" ? "testme" : "retestme" ) };
+                    my $sha = $commit->sha;
+                    my $branch = $b->id;
+                    js_handlers {
+                        onclick => "pubsub.send({type:'jifty.action',class:'Test',arguments:{commit:'$sha\{$branch}'}})"
+                    };
+                    outs_raw "&nbsp;";
+                } if Jifty->web->current_user->id;
                 if ($commit->status =~ /^(untested|testing|queued)$/) {
                     span {
                         { class is "sha" };
