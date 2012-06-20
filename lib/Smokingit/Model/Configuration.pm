@@ -40,8 +40,9 @@ sub create {
     my ($ok, $msg) = $self->SUPER::create(@_);
     return ($ok, $msg) unless $ok;
 
-    Smokingit->gearman->dispatch_background(
-        plan_tests => $self->project->name,
+    Jifty->rpc->call(
+        name => "plan_tests",
+        args => $self->project->name,
     );
 
     return ($ok, $msg);

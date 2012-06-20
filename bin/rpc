@@ -1,0 +1,23 @@
+#!/usr/bin/env perl
+
+use AnyEvent::RabbitMQ::RPC;
+
+use strict;
+use warnings;
+
+die unless @ARGV == 2;
+my ($queue, $arg) = @ARGV;
+
+my $rpc = AnyEvent::RabbitMQ::RPC->new(
+    host   => 'localhost',
+    port   => 5672,
+    user   => 'guest',
+    pass   => 'guest',
+    vhost  => '/',
+    serialize => 'Storable',
+);
+
+print $rpc->call(
+    name => $queue,
+    args => $arg,
+);

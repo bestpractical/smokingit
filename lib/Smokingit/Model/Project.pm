@@ -36,8 +36,9 @@ sub create {
     return ($ok, $msg) unless $ok;
 
     # Kick off the clone in the background
-    Smokingit->gearman->dispatch_background(
-        sync_project => $self->name,
+    Jifty->rpc->call(
+        name => "sync_project",
+        args => $self->name,
     );
 
     return ($ok, $msg);
@@ -109,7 +110,7 @@ sub planned_tests {
     my $self = shift;
     my $tests = Smokingit::Model::SmokeResultCollection->new;
     $tests->limit(
-        column => "gearman_process",
+        column => "queue_status",
         operator => "IS NOT",
         value => "NULL"
     );
@@ -126,7 +127,7 @@ sub finished_tests {
     my $self = shift;
     my $tests = Smokingit::Model::SmokeResultCollection->new;
     $tests->limit(
-        column => "gearman_process",
+        column => "queue_status",
         operator => "IS",
         value => "NULL"
     );

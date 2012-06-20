@@ -7,24 +7,14 @@ use lib 'lib';
 use Jifty;
 BEGIN { Jifty->new; }
 
-use Gearman::Worker;
-my $worker = Gearman::Worker->new(
-    job_servers => Jifty->config->app('job_servers'),
-);
+use AnyEvent;
 
 # User task, synchronous
-$worker->register_function(
-    check_queue => sub {
-        my $restarted = Smokingit->check_queue;
-        return "Restarted $restarted tasks\n";
-    },
-);
-
-# User task, synchronous
-$worker->register_function(
-    retest => sub {
-        my $job = shift;
-        my ($sha,$configname) = $job->arg =~ /^([0-9a-fA-F]+)(?:\s*\[(.*)\])?/;
+Jifty->rpc->register(
+    name => "retest",
+    run  => sub {
+        my $arg = shift;
+        my ($sha,$configname) = $arg =~ /^([0-9a-fA-F]+)(?:\s*\[(.*)\])?/;
 
         my $commits = Smokingit::Model::CommitCollection->new;
         $commits->limit( column => "sha", operator => "like", value => "$sha%" );
@@ -54,7 +44,7 @@ $worker->register_function(
             if ($smoke->id) {
                 $msg->("Re-testing $summary\n");
                 $smoke->as_superuser->set_submitted_at(undef);
-                $smoke->as_superuser->set_gearman_process(undef);
+                $smoke->as_superuser->set_queue_status(undef);
                 $tests += $smoke->run_smoke;
             } else {
                 # Guess which branch
@@ -77,10 +67,10 @@ $worker->register_function(
 );
 
 # User or background task
-$worker->register_function(
-    sync_project => sub {
-        my $job = shift;
-        my $project_name = $job->arg;
+Jifty->rpc->register(
+    name => "sync_project",
+    run  => sub {
+        my $project_name = shift;
 
         my $project = Smokingit::Model::Project->new(
             current_user => Smokingit::CurrentUser->superuser,
@@ -95,23 +85,24 @@ $worker->register_function(
 );
 
 # Background task, from worker
-$worker->register_function(
-    post_results => sub {
-        my $job = shift;
+Jifty->rpc->register(
+    name => "post_results",
+    run  => sub {
+        my $data = shift;
         my $smoke = Smokingit::Model::SmokeResult->new(
             current_user => Smokingit::CurrentUser->superuser,
         );
-        my ($ok, $msg) = $smoke->post_result($job->arg);
+        my ($ok, $msg) = $smoke->post_result($data);
         warn "$msg\n";
         return $ok;
     },
 );
 
 # Background task
-$worker->register_function(
-    plan_tests => sub {
-        my $job = shift;
-        my $project_name = $job->arg;
+Jifty->rpc->register(
+    name => "plan_tests",
+    run  => sub {
+        my $project_name = shift;
 
         my $projects = Smokingit::Model::ProjectCollection->new(
             current_user => Smokingit::CurrentUser->superuser,
@@ -135,11 +126,9 @@ $worker->register_function(
 );
 
 # Schedule some basic maintenance
-Smokingit->gearman->dispatch_background( check_queue => 1 );
-
 my $projects = Smokingit::Model::ProjectCollection->new;
 $projects->unlimit;
-Smokingit->gearman->dispatch_background( sync_project => $_->name )
+Jifty->rpc->call( name => "sync_project", args => $_->name )
     while $_ = $projects->next;
 
-$worker->work while 1;
+AE::cv->recv;

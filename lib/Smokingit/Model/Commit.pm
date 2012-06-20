@@ -129,24 +129,18 @@ sub status {
         return @{$cache_value} if $cache_value;
 
         my @return;
-        if ($result->gearman_process) {
-            my $status = $result->gearman_status;
-            if (not $status->known) {
-                return ("broken", "Unknown");
-            } elsif ($status->running) {
-                my $percent = defined $status->percent
-                    ? int($status->percent*100)."%" : undef;
-                my $msg = defined $percent
-                    ? "$percent complete"
-                        : "Configuring";
-                return ("testing", $msg, $percent);
-            } else {
+        if (my $status = $result->queue_status) {
+            if ($status eq "queued") {
                 return ("queued", "Queued to test");
+            } elsif ($status eq "broken") {
+                return ("broken", "Failed to queue!");
+            } else {
+                return ("testing", $status, undef);
             }
         } elsif ($result->error) {
             @return = ("errors", $result->short_error);
         } elsif ($result->is_ok) {
-            @return = ("passing", $result->passed . " OK")
+            @return = ("passing", $result->passed . " OK");
         } elsif ($result->failed) {
             @return = ("failing", $result->failed . " failed");
         } elsif ($result->parse_errors) {

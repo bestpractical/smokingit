@@ -11,12 +11,13 @@ framework:
     Host: localhost
     Password: ''
     User: postgres
-    Version: 0.0.6
+    Version: 0.0.7
   DevelMode: 1
   LogLevel: INFO
   Mailer: Sendmail
   MailerArgs: []
-  Plugins: 
+  Plugins:
+    - RPC: {}
     - CompressedCSSandJS: {}
     - ErrorTemplates: {}
     - REST: {}
@@ -34,7 +35,5 @@ framework:
     StaticRoot: share/web/static
     TemplateRoot: share/web/templates
 application:
-  job_servers:
-    - 127.0.0.1:4730
   memcached_servers:
     - 127.0.0.1:11211

@@ -91,8 +91,9 @@ sub create {
         unless $self->project->branches->count == 1
             or $self->to_merge_into->id;
 
-    Smokingit->gearman->dispatch_background(
-        plan_tests => $self->project->name,
+    Jifty->rpc->call(
+        name => "plan_tests",
+        args => $self->project->name,
     ) if $plan_tests;
 
     return ($ok, $msg);
@@ -173,8 +174,9 @@ sub set_status {
         # It's no longer ignored; start testing where the tip is now,
         # not where it was when we first found it
         $self->set_tested_commit_id( $self->current_commit->id );
-        Smokingit->gearman->dispatch_background(
-            plan_tests => $self->project->name,
+        Jifty->rpc->call(
+            name => "plan_tests",
+            args => $self->project->name,
         );
     }
 
@@ -239,7 +241,7 @@ sub commit_list {
         name    => "smoke_results",
         alias   => $results,
         class   => "Smokingit::Model::SmokeResultCollection",
-        columns => [qw/id gearman_process configuration_id commit_id
+        columns => [qw/id queue_status configuration_id commit_id
                        error is_ok exit wait
                        passed failed parse_errors todo_passed/],
     );

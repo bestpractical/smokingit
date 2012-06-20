@@ -1,9 +1,0 @@
-#!/bin/bash
-
-gearmand \
-    --daemon\
-    --verbose \
-    --verbose \
-    --pid-file=var/gearman.pid \
-    --log-file=log/gearmand.log \
-    --port=4730

@@ -164,7 +164,7 @@ sub branchlist {
             name    => "smoke_results",
             alias   => $results,
             class   => "Smokingit::Model::SmokeResultCollection",
-            columns => [qw/id gearman_process configuration_id
+            columns => [qw/id queue_status configuration_id
                            error is_ok exit wait
                            passed failed parse_errors todo_passed/],
         );
