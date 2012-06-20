@@ -9,6 +9,7 @@ our( $MEMCACHED );
 sub start {
     $MEMCACHED = Cache::Memcached->new(
         { servers => Jifty->config->app( 'memcached_servers' ) } );
+    Jifty->web->add_javascript( "app-late.js" );
 }
 
 sub memcached { $MEMCACHED }

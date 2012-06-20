@@ -6,6 +6,10 @@ use Jifty::View::Declare -base;
 
 template '/project' => page {
     redirect '/' unless get('project');
+
+    Jifty->subs->add( topic => $_ )
+        for qw/ test_progress commit_status /;
+
     page_title is get('project')->name;
     div {{class is "subtitle"} get('project')->repository_url };
 

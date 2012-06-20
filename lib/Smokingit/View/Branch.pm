@@ -7,6 +7,10 @@ use Jifty::View::Declare -base;
 template '/branch' => page {
     my $b = get('branch');
     redirect '/' unless $b;
+
+    Jifty->subs->add( topic => $_ )
+        for qw/ test_progress commit_status /;
+
     page_title is $b->name;
     div {
         { class is "subtitle" }
