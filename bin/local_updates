@@ -5,7 +5,7 @@ use warnings;
 use lib 'lib';
 
 use Jifty;
-BEGIN { Jifty->new; }
+BEGIN { Jifty->new( no_request => 1 ); }
 
 use AnyEvent;
 
@@ -13,56 +13,7 @@ use AnyEvent;
 Jifty->rpc->register(
     name => "retest",
     run  => sub {
-        my $arg = shift;
-        my ($sha,$configname) = $arg =~ /^([0-9a-fA-F]+)(?:\s*\[(.*)\])?/;
-
-        my $commits = Smokingit::Model::CommitCollection->new;
-        $commits->limit( column => "sha", operator => "like", value => "$sha%" );
-        return "Unknown SHA\n"   if $commits->count == 0;
-        return "Ambiguous SHA\n" if $commits->count > 1;
-
-        my @msgs;
-        my $msg = sub { warn @_; push @msgs, @_ };
-
-        my $commit = $commits->next;
-
-        my $branch;
-
-        my $configs = $commit->project->configurations;
-        $configs->limit( column => "name", operator => "MATCHES", value => $configname )
-            if defined $configname and length $configname;
-        my $tests = 0;
-        while (my $config = $configs->next) {
-            my $summary = $commit->short_sha . "[" . $config->name ."]";
-            my %lookup = (
-                project_id       => $commit->project->id,
-                configuration_id => $config->id,
-                commit_id        => $commit->id,
-            );
-            my $smoke = Smokingit::Model::SmokeResult->new;
-            $smoke->load_by_cols( %lookup );
-            if ($smoke->id) {
-                $msg->("Re-testing $summary\n");
-                $smoke->as_superuser->set_submitted_at(undef);
-                $smoke->as_superuser->set_queue_status(undef);
-                $tests += $smoke->run_smoke;
-            } else {
-                # Guess which branch
-                unless ($branch) {
-                    $branch = Smokingit::Model::Branch->new;
-                    my @branches = $commit->branches;
-                    $branch->load_by_cols( name => $branches[0], project_id => $commit->project->id)
-                        if @branches == 1;
-                }
-                if ($branch->id) {
-                    $msg->("Testing $summary\n");
-                    $tests += $commit->run_smoke( $config, $branch );
-                } else {
-                    $msg->("No existing smoke for $summary found, and can't determine branch\n");
-                }
-            }
-        }
-        return join "", @msgs;
+        return Smokingit->test( @_ ) . "\n";
     },
 );
 
