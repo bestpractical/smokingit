@@ -132,7 +132,7 @@ template '/fragments/branch/properties' => sub {
         if ($b->is_under_review) {
             row {
                 th { "Review by" };
-                cell { $b->review_by };
+                cell { $b->review_by || b { "somebody" } };
             };
         }
     };

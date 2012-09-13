@@ -193,7 +193,6 @@ sub long_status_html {
 sub is_under_review {
     my $self = shift;
     return unless $self->status =~ /^(needs-review|awaiting-merge|merged)$/;
-    return unless $self->review_by;
     return 1;
 }
 
