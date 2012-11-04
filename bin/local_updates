@@ -104,7 +104,8 @@ $listen->poll(
 # Schedule some basic maintenance
 my $projects = Smokingit::Model::ProjectCollection->new;
 $projects->unlimit;
-Jifty->rpc->call( name => "sync_project", args => $_->name )
-    while $_ = $projects->next;
+while (my $project = $projects->next) {
+    Jifty->rpc->call( name => "sync_project", args => $project->name )
+}
 
 AE::cv->recv;

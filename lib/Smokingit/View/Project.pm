@@ -84,7 +84,9 @@ template '/fragments/project/finished' => sub {
         h2 { "Recent tests" };
         span {
             class is "commitlist";
-            test_result($_) while $_ = $tests->next;
+            while (my $test = $tests->next) {
+                test_result($test);
+            }
         };
     };
     Jifty->subs->update_on( topic => "test_queued" );
@@ -101,7 +103,9 @@ template '/fragments/project/planned' => sub {
         h2 { "Planned tests" };
         span {
             class is "commitlist";
-            test_result($_) while $_ = $planned->next;
+            while (my $test = $planned->next) {
+                test_result($test);
+            }
         };
     };
     Jifty->subs->update_on( topic => "test_queued" );

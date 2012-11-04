@@ -246,7 +246,10 @@ sub commit_list {
                        passed failed parse_errors todo_passed/],
     );
     my %commits;
-    $commits{$_->sha} = $_ while $_ = $commits->next;
+    while (my $commit = $commits->next) {
+        $commits{$commit->sha} = $commit;
+    }
+
     return map $commits{$_} || $self->project->sha($_), @revs;
 }
 
