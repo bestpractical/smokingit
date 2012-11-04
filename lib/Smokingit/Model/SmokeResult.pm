@@ -109,7 +109,10 @@ sub run_smoke {
         on_sent => sub {
             my $ok = shift;
             $self->as_superuser->set_queue_status($ok ? "queued" : "broken");
-            $self->as_superuser->set_queued_at( Jifty::DateTime->now );
+            # Use SQL so we get millisecond accuracy in the DB.  Otherwise rows
+            # inserted during the same second may not sort the same as they show
+            # up in the worker's queue.
+            $self->__set( column => 'queued_at', value => 'now()', is_sql_function => 1 );
             $self->load($self->id);
 
             # If we had a result for this already, we need to clean its status
@@ -160,7 +163,6 @@ sub post_result {
         # Unset the existing data if there was a fail
         $result{$_} = undef for @props, "is_ok", "elapsed";
     }
-    $result{submitted_at} = Jifty::DateTime->now;
 
     my $status = Smokingit::Status->new( $self );
 
@@ -173,6 +175,10 @@ sub post_result {
     } elsif (not $self->queue_status) {
         return (0, "Smoke report on $smokeid which wasn't being smoked? (last report at @{[$self->submitted_at]})");
     }
+
+    # Use SQL so we get millisecond accuracy in the DB.  This is not as
+    # necessary as for queued_at (above), but is useful nonetheless.
+    $self->__set( column => 'submitted_at', value => 'now()', is_sql_function => 1 );
 
     # Update with the new data
     for my $key (keys %result) {
