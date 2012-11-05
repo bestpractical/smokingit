@@ -38,6 +38,9 @@ template '/index.html' => page {
         };
     }
 
+    my $project = Smokingit::Model::Project->new;
+    return unless $project->current_user_can("create");
+
     div {
         { id is "create-project"; };
         h2 { "Add a project" };

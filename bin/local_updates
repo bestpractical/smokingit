@@ -5,84 +5,27 @@ use warnings;
 use lib 'lib';
 
 use Jifty;
-BEGIN { Jifty->new; }
+BEGIN { Jifty->new( no_request => 1 ); }
 
-use Gearman::Worker;
-my $worker = Gearman::Worker->new(
-    job_servers => Jifty->config->app('job_servers'),
-);
+use AnyEvent;
 
 # User task, synchronous
-$worker->register_function(
-    check_queue => sub {
-        my $restarted = Smokingit->check_queue;
-        return "Restarted $restarted tasks\n";
-    },
-);
-
-# User task, synchronous
-$worker->register_function(
-    retest => sub {
-        my $job = shift;
-        my ($sha,$configname) = $job->arg =~ /^([0-9a-fA-F]+)(?:\s*\[(.*)\])?/;
-
-        my $commits = Smokingit::Model::CommitCollection->new;
-        $commits->limit( column => "sha", operator => "like", value => "$sha%" );
-        return "Unknown SHA\n"   if $commits->count == 0;
-        return "Ambiguous SHA\n" if $commits->count > 1;
-
-        my @msgs;
-        my $msg = sub { warn @_; push @msgs, @_ };
-
-        my $commit = $commits->next;
-
-        my $branch;
-
-        my $configs = $commit->project->configurations;
-        $configs->limit( column => "name", operator => "MATCHES", value => $configname )
-            if defined $configname and length $configname;
-        my $tests = 0;
-        while (my $config = $configs->next) {
-            my $summary = $commit->short_sha . "[" . $config->name ."]";
-            my %lookup = (
-                project_id       => $commit->project->id,
-                configuration_id => $config->id,
-                commit_id        => $commit->id,
-            );
-            my $smoke = Smokingit::Model::SmokeResult->new;
-            $smoke->load_by_cols( %lookup );
-            if ($smoke->id) {
-                $msg->("Re-testing $summary\n");
-                $smoke->set_submitted_at(undef);
-                $smoke->set_gearman_process(undef);
-                $tests += $smoke->run_smoke;
-            } else {
-                # Guess which branch
-                unless ($branch) {
-                    $branch = Smokingit::Model::Branch->new;
-                    my @branches = $commit->branches;
-                    $branch->load_by_cols( name => $branches[0], project_id => $commit->project->id)
-                        if @branches == 1;
-                }
-                if ($branch->id) {
-                    $msg->("Testing $summary\n");
-                    $tests += $commit->run_smoke( $config, $branch );
-                } else {
-                    $msg->("No existing smoke for $summary found, and can't determine branch\n");
-                }
-            }
-        }
-        return join "", @msgs;
+Jifty->rpc->register(
+    name => "retest",
+    run  => sub {
+        return Smokingit->test( @_ ) . "\n";
     },
 );
 
 # User or background task
-$worker->register_function(
-    sync_project => sub {
-        my $job = shift;
-        my $project_name = $job->arg;
+Jifty->rpc->register(
+    name => "sync_project",
+    run  => sub {
+        my $project_name = shift;
 
-        my $project = Smokingit::Model::Project->new;
+        my $project = Smokingit::Model::Project->new(
+            current_user => Smokingit::CurrentUser->superuser,
+        );
         $project->load_by_cols( name => $project_name );
         return "No such project: $project_name\n"
             unless $project->id;
@@ -93,23 +36,28 @@ $worker->register_function(
 );
 
 # Background task, from worker
-$worker->register_function(
-    post_results => sub {
-        my $job = shift;
-        my $smoke = Smokingit::Model::SmokeResult->new;
-        my ($ok, $msg) = $smoke->post_result($job->arg);
+Jifty->rpc->register(
+    name => "post_results",
+    run  => sub {
+        my $data = shift;
+        my $smoke = Smokingit::Model::SmokeResult->new(
+            current_user => Smokingit::CurrentUser->superuser,
+        );
+        my ($ok, $msg) = $smoke->post_result($data);
         warn "$msg\n";
         return $ok;
     },
 );
 
 # Background task
-$worker->register_function(
-    plan_tests => sub {
-        my $job = shift;
-        my $project_name = $job->arg;
+Jifty->rpc->register(
+    name => "plan_tests",
+    run  => sub {
+        my $project_name = shift;
 
-        my $projects = Smokingit::Model::ProjectCollection->new;
+        my $projects = Smokingit::Model::ProjectCollection->new(
+            current_user => Smokingit::CurrentUser->superuser,
+        );
         if ($project_name) {
             $projects->limit( column => "name", value => $project_name );
         } else {
@@ -128,12 +76,36 @@ $worker->register_function(
     }
 );
 
-# Schedule some basic maintenance
-Smokingit->gearman->dispatch_background( check_queue => 1 );
+my $listen = Jifty->bus->new_listener;
+$listen->subscribe( Jifty->bus->topic("worker_progress") );
+$listen->poll(
+    sub {
+        my %message = %{ shift() };
+        my $smoke = Smokingit::Model::SmokeResult->new(
+            current_user => Smokingit::CurrentUser->superuser,
+        );
+        $smoke->load( $message{smoke_id} );
+        my $status = Smokingit::Status->new( $smoke );
+        if ($message{status} eq "started") {
+            $smoke->set_queue_status("Processing commit");
+        } elsif ($message{status} eq "configuring") {
+            $smoke->set_queue_status("Configuring");
+        } elsif ($message{status} eq "testing") {
+            my $fraction = $message{complete}/($message{total} || 1);
+            $smoke->set_queue_status(
+                int($fraction*100) ."% complete");
+        } else {
+            warn "Unknown worker status: $message{status}";
+        }
+        $status->publish;
+    }
+);
 
+# Schedule some basic maintenance
 my $projects = Smokingit::Model::ProjectCollection->new;
 $projects->unlimit;
-Smokingit->gearman->dispatch_background( sync_project => $_->name )
-    while $_ = $projects->next;
+while (my $project = $projects->next) {
+    Jifty->rpc->call( name => "sync_project", args => $project->name )
+}
 
-$worker->work while 1;
+AE::cv->recv;

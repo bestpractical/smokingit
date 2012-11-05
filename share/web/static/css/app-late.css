@@ -279,17 +279,21 @@ li {
   font-size: 145%;
 }
 
-.commitlist .commit.passing   .sha { color: #1c1; }
-.commitlist .commit.failing   .sha { color: #f11; }
+.commitlist .commit.untested  .sha { color: #555; }
+.commitlist .commit.passing   .sha { color: #191; }
 .commitlist .commit.todo      .sha { color: #fa0; }
+.commitlist .commit.failing   .sha { color: #f11; }
 .commitlist .commit.parsefail .sha { color: #f11; }
 .commitlist .commit.errors    .sha { color: #f11; }
 .commitlist .commit.testing   .sha { color: #11f; }
 .commitlist .commit.queued    .sha { color: #115; }
 .commitlist .commit.broken    .sha { color: #f11; }
-.commitlist .commit.untested  .sha { color: #555; }
 
-.commitlist .okbox {
+.commitlist .spacer {
+  float: left;
+  width: 32px;
+}
+.commitlist .okbox, .commitlist .testme, .commitlist .retestme {
   float: left;
   width: 32px;
   background-repeat: no-repeat;
@@ -309,6 +313,16 @@ li {
 .commitlist .okbox.testing   { background-image: url('/static/images/silk/cog.png');             }
 .commitlist .okbox.queued    { background-image: url('/static/images/silk/hourglass.png');       }
 .commitlist .okbox.broken    { background-image: url('/static/images/silk/server_error.png');    }
+
+.commitlist .testme, .commitlist .retestme {
+    cursor: pointer;
+    opacity: 0.3;
+}
+.commitlist .testme:hover, .commitlist .retestme:hover {
+    opacity: 1;
+}
+.commitlist .testme   { background-image: url('/static/images/silk/control_play.png');   }
+.commitlist .retestme { background-image: url('/static/images/silk/control_repeat.png'); }
 
 .commitlist .branchpoint {
   clear: both;

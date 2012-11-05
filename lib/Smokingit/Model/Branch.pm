@@ -6,7 +6,8 @@ use Jifty::DBI::Schema;
 
 use Smokingit::Record schema {
     column project_id =>
-        references Smokingit::Model::Project;
+        references Smokingit::Model::Project,
+        is protected;
 
     column name =>
         type is 'text',
@@ -14,16 +15,20 @@ use Smokingit::Record schema {
         label is _("Branch name");
 
     column first_commit_id =>
-        references Smokingit::Model::Commit;
+        references Smokingit::Model::Commit,
+        is protected;
 
     column current_commit_id =>
-        references Smokingit::Model::Commit;
+        references Smokingit::Model::Commit,
+        is protected;
 
     column tested_commit_id =>
-        references Smokingit::Model::Commit;
+        references Smokingit::Model::Commit,
+        is protected;
 
     column last_status_update =>
-        references Smokingit::Model::Commit;
+        references Smokingit::Model::Commit,
+        is protected;
 
     column status =>
         type is 'text',
@@ -54,7 +59,8 @@ use Smokingit::Record schema {
 
     column current_actor =>
         type is 'text',
-        since '0.0.3';
+        since '0.0.3',
+        is protected;
 };
 
 sub create {
@@ -85,8 +91,9 @@ sub create {
         unless $self->project->branches->count == 1
             or $self->to_merge_into->id;
 
-    Smokingit->gearman->dispatch_background(
-        plan_tests => $self->project->name,
+    Jifty->rpc->call(
+        name => "plan_tests",
+        args => $self->project->name,
     ) if $plan_tests;
 
     return ($ok, $msg);
@@ -167,8 +174,9 @@ sub set_status {
         # It's no longer ignored; start testing where the tip is now,
         # not where it was when we first found it
         $self->set_tested_commit_id( $self->current_commit->id );
-        Smokingit->gearman->dispatch_background(
-            plan_tests => $self->project->name,
+        Jifty->rpc->call(
+            name => "plan_tests",
+            args => $self->project->name,
         );
     }
 
@@ -232,12 +240,15 @@ sub commit_list {
         name    => "smoke_results",
         alias   => $results,
         class   => "Smokingit::Model::SmokeResultCollection",
-        columns => [qw/id gearman_process configuration_id commit_id
+        columns => [qw/id queue_status configuration_id commit_id
                        error is_ok exit wait
                        passed failed parse_errors todo_passed/],
     );
     my %commits;
-    $commits{$_->sha} = $_ while $_ = $commits->next;
+    while (my $commit = $commits->next) {
+        $commits{$commit->sha} = $commit;
+    }
+
     return map $commits{$_} || $self->project->sha($_), @revs;
 }
 
@@ -275,7 +286,9 @@ When we get user accounts, this will become $branch->current_actor->name
 sub format_user {
     my ($self, $type) = @_;
     if ($self->can($type)) {
-        if ( $self->$type =~ m/<(.*?)@/ ) {
+        if ( not defined $self->$type ) {
+            return "somebody";
+        } elsif ( $self->$type =~ m/<(.*?)@/ ) {
             return $1;
         }
     } else {
@@ -283,6 +296,17 @@ sub format_user {
     }
     return 'unknown';
 
+}
+
+sub current_user_can {
+    my $self  = shift;
+    my $right = shift;
+    my %args  = (@_);
+
+    return 1 if $right eq 'read';
+    return 1 if $right eq 'update' and $self->current_user->id;
+
+    return $self->SUPER::current_user_can($right => %args);
 }
 
 1;

@@ -3,8 +3,7 @@ use warnings;
 
 package Smokingit::Model::SmokeResult;
 use Jifty::DBI::Schema;
-
-use Storable qw/nfreeze thaw/;
+use Smokingit::Status;
 
 use Smokingit::Record schema {
     column project_id =>
@@ -29,7 +28,12 @@ use Smokingit::Record schema {
         since '0.0.4';
 
     column gearman_process =>
-        type is 'text';
+        type is 'text',
+        till '0.0.7';
+
+    column queue_status =>
+        type is 'text',
+        since '0.0.7';
 
     column queued_at =>
         is timestamp,
@@ -60,6 +64,7 @@ use Smokingit::Record schema {
 
     column elapsed      => type is 'integer';
 };
+sub is_protected {1}
 
 sub short_error {
     my $self = shift;
@@ -68,18 +73,10 @@ sub short_error {
     return $msg;
 }
 
-use Gearman::JobStatus;
-sub gearman_status {
-    my $self = shift;
-    return Gearman::JobStatus->new(0,0) unless $self->gearman_process;
-    return $self->{job_status} ||= Smokingit->gearman->get_status($self->gearman_process)
-        || Gearman::JobStatus->new(0,0);
-}
-
 sub run_smoke {
     my $self = shift;
 
-    if ($self->gearman_status->known) {
+    if ($self->queue_status) {
         warn join( ":",
               $self->project->name,
               $self->configuration->name,
@@ -95,9 +92,10 @@ sub run_smoke {
               $self->commit->short_sha
           )."\n";
 
-    my $job_id = Smokingit->gearman->dispatch_background(
-        "run_tests",
-        nfreeze( {
+    my $status = Smokingit::Status->new( $self );
+    Jifty->rpc->call(
+        name => "run_tests",
+        args => {
             smoke_id       => $self->id,
 
             project        => $self->project->name,
@@ -107,19 +105,27 @@ sub run_smoke {
             env            => $self->configuration->env,
             parallel       => ($self->configuration->parallel ? 1 : 0),
             test_glob      => $self->configuration->test_glob,
-        } ),
-        { uniq => $self->id },
-    );
-    warn "Unable to insert run_tests job!\n" unless $job_id;
-    $self->set_gearman_process($job_id || "failed");
-    $self->set_queued_at( Jifty::DateTime->now );
+        },
+        on_sent => sub {
+            my $ok = shift;
+            $self->as_superuser->set_queue_status($ok ? "queued" : "broken");
+            # Use SQL so we get millisecond accuracy in the DB.  Otherwise rows
+            # inserted during the same second may not sort the same as they show
+            # up in the worker's queue.
+            $self->__set( column => 'queued_at', value => 'now()', is_sql_function => 1 );
+            $self->load($self->id);
 
-    # If we had a result for this already, we need to clean its status
-    # out of the memcached cache.  Remove both the cache on the commit,
-    # as well as this smoke.
-    Smokingit->memcached->delete( $self->commit->status_cache_key );
-    Smokingit->memcached->delete( $self->status_cache_key );
-    return $job_id ? 1 : 0;
+            # If we had a result for this already, we need to clean its status
+            # out of the memcached cache.  Remove both the cache on the commit,
+            # as well as this smoke.
+            Smokingit->memcached->delete( $self->commit->status_cache_key );
+            Smokingit->memcached->delete( $self->status_cache_key );
+
+            $status->publish;
+        },
+    );
+
+    return 1;
 }
 
 sub status_cache_key {
@@ -131,9 +137,7 @@ sub post_result {
     my $self = shift;
     my ($arg) = @_;
 
-    my %result;
-    eval { %result = %{ thaw( $arg ) } };
-    return (0, "Thaw failed: $@") if $@;
+    my %result = %{ $arg };
 
     # Properties to extract from the aggregator
     my @props =
@@ -159,7 +163,8 @@ sub post_result {
         # Unset the existing data if there was a fail
         $result{$_} = undef for @props, "is_ok", "elapsed";
     }
-    $result{submitted_at} = Jifty::DateTime->now;
+
+    my $status = Smokingit::Status->new( $self );
 
     # Find the smoke
     Jifty->handle->begin_transaction;
@@ -167,9 +172,13 @@ sub post_result {
     $self->load( $smokeid );
     if (not $self->id) {
         return (0, "Invalid smoke ID: $smokeid");
-    } elsif (not $self->gearman_process) {
+    } elsif (not $self->queue_status) {
         return (0, "Smoke report on $smokeid which wasn't being smoked? (last report at @{[$self->submitted_at]})");
     }
+
+    # Use SQL so we get millisecond accuracy in the DB.  This is not as
+    # necessary as for queued_at (above), but is useful nonetheless.
+    $self->__set( column => 'submitted_at', value => 'now()', is_sql_function => 1 );
 
     # Update with the new data
     for my $key (keys %result) {
@@ -177,10 +186,12 @@ sub post_result {
         $self->$method($result{$key});
     }
     # Mark as no longer smoking
-    $self->set_gearman_process(undef);
+    $self->set_queue_status(undef);
 
     # And commit all of that
     Jifty->handle->commit;
+
+    $status->publish;
 
     return (1, "Test result for "
              . $self->project->name
@@ -188,6 +199,17 @@ sub post_result {
              ." using ". $self->configuration->name
              ." on ". $self->branch_name
              .": ".($self->is_ok ? "OK" : "NOT OK"));
+}
+
+
+sub current_user_can {
+    my $self  = shift;
+    my $right = shift;
+    my %args  = (@_);
+
+    return 1 if $right eq 'read';
+
+    return $self->SUPER::current_user_can($right => %args);
 }
 
 1;

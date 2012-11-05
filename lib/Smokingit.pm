@@ -2,36 +2,31 @@ use strict;
 use warnings;
 
 package Smokingit;
-use Gearman::Client;
 use Cache::Memcached;
 
-our( $GEARMAN, $MEMCACHED );
+our( $MEMCACHED );
 
 sub start {
-    $GEARMAN = Gearman::Client->new;
-    $GEARMAN->job_servers( Jifty->config->app('job_servers') );
-
     $MEMCACHED = Cache::Memcached->new(
         { servers => Jifty->config->app( 'memcached_servers' ) } );
+    Jifty->web->add_javascript( "app-late.js" );
 }
 
-sub gearman   { $GEARMAN   }
 sub memcached { $MEMCACHED }
 
-sub check_queue {
-    my $job = shift;
-    my $queued = Smokingit::Model::SmokeResultCollection->new;
-    $queued->limit(
-        column => "submitted_at",
-        operator => "IS",
-        value => "NULL",
+sub test {
+    my $self = shift;
+
+    my $arg = shift;
+    my $action = Smokingit::Action::Test->new(
+        current_user => Smokingit::CurrentUser->superuser,
+        arguments    => { commit => $arg },
     );
-    my $restarted = 0;
-    while (my $smoke = $queued->next) {
-        next if $smoke->gearman_status->known;
-        $restarted += $smoke->run_smoke;
-    }
-    return $restarted;
+    $action->validate;
+    return $action->result->field_error("commit") . "\n"
+        unless $action->result->success;
+    $action->run;
+    return ($action->result->message || $action->result->error);
 }
 
 1;

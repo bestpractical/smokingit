@@ -1,0 +1,13 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+
+use Jifty;
+BEGIN { Jifty-> new };
+
+my ($username, $password) = @ARGV;
+
+my $user = Smokingit::Model::User->new( current_user => Smokingit::CurrentUser->superuser );
+$user->load_or_create( name => $username );
+$user->set_password( $password );
+

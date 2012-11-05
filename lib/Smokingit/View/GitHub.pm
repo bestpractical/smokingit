@@ -35,8 +35,9 @@ template '/github' => sub {
                 or return "Branch is not currently tested\n";
         }
 
-        Smokingit->gearman->dispatch_background(
-            sync_project => $project->name,
+        Jifty->api->call(
+            name => "sync_project",
+            args => $project->name,
         );
         return undef;
     };

@@ -7,6 +7,10 @@ use Jifty::View::Declare -base;
 template '/branch' => page {
     my $b = get('branch');
     redirect '/' unless $b;
+
+    Jifty->subs->add( topic => $_ )
+        for qw/ test_progress commit_status /;
+
     page_title is $b->name;
     div {
         { class is "subtitle" }
@@ -53,17 +57,17 @@ template '/branch' => page {
             my $merge = $commit->subject =~ /^Merge branch /
                 ? "merge" : "nonmerge";
             div {
-                {class is "$merge commit ".$commit->status};
+                {class is $commit->sha." $merge commit ".$commit->status};
                 for my $config (@configs) {
                     my ($status, $msg, $in) = $commit->status($config);
                     if ($status =~ /^(untested|testing|queued)$/) {
                         span {
-                            attr { class => "okbox $status", title => $msg };
+                            attr { class => "okbox $status config-".$config->id, title => $msg };
                             outs_raw($in ||"&nbsp;")
                         };
                     } else {
                         hyperlink(
-                            class => "okbox $status",
+                            class => "okbox $status config-".$config->id,
                             label => "&nbsp;",
                             escape_label => 0,
                             url   => "/test/".$commit->sha."/".$config->name,
@@ -71,6 +75,15 @@ template '/branch' => page {
                         );
                     }
                 }
+                span {
+                    { class is ( $commit->status eq "untested" ? "testme" : "retestme" ) };
+                    my $sha = $commit->sha;
+                    my $branch = $b->id;
+                    js_handlers {
+                        onclick => "pubsub.send({type:'jifty.action',class:'Test',arguments:{commit:'$sha\{$branch}'}})"
+                    };
+                    outs_raw "&nbsp;";
+                } if Jifty->web->current_user->id;
                 if ($commit->status =~ /^(untested|testing|queued)$/) {
                     span {
                         { class is "sha" };
@@ -100,7 +113,7 @@ template '/fragments/branch/properties' => sub {
         { id is "branch-properties" };
         js_handlers {
             onclick => {replace_with => "/fragments/branch/edit" }
-        };
+        } if $b->current_user_can("update");
 
         row {
             th { "Status" };
@@ -149,6 +162,10 @@ template '/fragments/branch/properties' => sub {
 template '/fragments/branch/edit' => sub {
     my $b = Smokingit::Model::Branch->new;
     $b->load( get('branch_id') );
+
+    redirect "/fragments/branch/properties"
+        unless $b->current_user_can("update");
+
     my $status = $b->status;
     form {
         my $update = $b->as_update_action( moniker => "update" );

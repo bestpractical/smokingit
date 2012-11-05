@@ -11,16 +11,22 @@ framework:
     Host: localhost
     Password: ''
     User: postgres
-    Version: 0.0.5
+    Version: 0.0.7
   DevelMode: 1
   LogLevel: INFO
   Mailer: Sendmail
   MailerArgs: []
-  Plugins: 
+  Plugins:
+    - PubSub: {}
+    - RPC: {}
     - CompressedCSSandJS: {}
     - ErrorTemplates: {}
     - REST: {}
-  SkipAccessControl: 1
+    - Authentication::Password:
+        login_by: username
+        nav_menu: 0
+        signup: 0
+  SkipAccessControl: 0
   Web: 
     BaseURL: http://localhost
     DataDir: var/mason
@@ -30,7 +36,5 @@ framework:
     StaticRoot: share/web/static
     TemplateRoot: share/web/templates
 application:
-  job_servers:
-    - 127.0.0.1:4730
   memcached_servers:
     - 127.0.0.1:11211

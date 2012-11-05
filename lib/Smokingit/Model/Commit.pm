@@ -36,6 +36,7 @@ use Smokingit::Record schema {
     column body =>
         type is 'text';
 };
+sub is_protected {1}
 
 sub create {
     my $self = shift;
@@ -76,7 +77,9 @@ sub run_smoke {
         configuration_id => $config->id,
         commit_id        => $self->id,
     );
-    my $smoke = Smokingit::Model::SmokeResult->new;
+    my $smoke = Smokingit::Model::SmokeResult->new(
+        current_user => Smokingit::CurrentUser->superuser,
+    );
     $smoke->load_by_cols( %lookup );
     return 0 if $smoke->id;
 
@@ -90,10 +93,7 @@ sub run_smoke {
 sub hash_results {
     my $self = shift;
     my $results = shift || $self->prefetched( "smoke_results" );
-    unless ($results) {
-        warn "$self does not have smoke_results prefetched!\n";
-        return;
-    }
+    return unless $results;
     $self->{results} = {};
     $self->{results}{$_->configuration->id} = $_
         for @{$results->items_array_ref};
@@ -129,24 +129,20 @@ sub status {
         return @{$cache_value} if $cache_value;
 
         my @return;
-        if ($result->gearman_process) {
-            my $status = $result->gearman_status;
-            if (not $status->known) {
-                return ("broken", "Unknown");
-            } elsif ($status->running) {
-                my $percent = defined $status->percent
-                    ? int($status->percent*100)."%" : undef;
-                my $msg = defined $percent
-                    ? "$percent complete"
-                        : "Configuring";
-                return ("testing", $msg, $percent);
-            } else {
+        if (my $status = $result->queue_status) {
+            if ($status =~ /^(\d+%) complete$/) {
+                return ("testing", $status, $1);
+            } elsif ($status eq "queued") {
                 return ("queued", "Queued to test");
+            } elsif ($status eq "broken") {
+                return ("broken", "Failed to queue!");
+            } else {
+                return ("testing", $status, undef);
             }
         } elsif ($result->error) {
             @return = ("errors", $result->short_error);
         } elsif ($result->is_ok) {
-            @return = ("passing", $result->passed . " OK")
+            @return = ("passing", $result->passed . " OK");
         } elsif ($result->failed) {
             @return = ("failing", $result->failed . " failed");
         } elsif ($result->parse_errors) {
@@ -228,6 +224,16 @@ sub branches {
 sub status_cache_key {
     my $self = shift;
     return "status-" . $self->sha;
+}
+
+sub current_user_can {
+    my $self  = shift;
+    my $right = shift;
+    my %args  = (@_);
+
+    return 1 if $right eq 'read';
+
+    return $self->SUPER::current_user_can($right => %args);
 }
 
 1;

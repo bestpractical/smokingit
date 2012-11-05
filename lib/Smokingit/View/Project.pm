@@ -6,6 +6,10 @@ use Jifty::View::Declare -base;
 
 template '/project' => page {
     redirect '/' unless get('project');
+
+    Jifty->subs->add( topic => $_ )
+        for qw/ test_progress commit_status /;
+
     page_title is get('project')->name;
     div {{class is "subtitle"} get('project')->repository_url };
 
@@ -24,17 +28,22 @@ template '/project' => page {
             ul {
                 while (my $c = $configs->next) {
                     li {
-                        hyperlink(
-                            label => $c->name,
-                            url => "config/" . $c->name,
-                        );
+                        if ($c->current_user_can("update")) {
+                            hyperlink(
+                                label => $c->name,
+                                url => "config/" . $c->name
+                            );
+                        } else {
+                            outs $c->name;
+                        }
                     };
                 }
             };
+            my $config = Smokingit::Model::Configuration->new;
             hyperlink(
                 label => "New configuration",
                 url => "new-configuration",
-            );
+            ) if $config->current_user_can("create");
         };
 
         div {
@@ -50,37 +59,71 @@ template '/project' => page {
             };
         };
 
-        my $tests = get('project')->finished_tests;
-        $tests->rows_per_page(10);
-        if ($tests->count) {
-            div {
-                id is "recent-tests";
-                class is "commitlist";
-                h2 { "Recent tests" };
-                test_result($_) while $_ = $tests->next;
-            };
-        }
+        render_region(
+            name => "finished",
+            path => "/fragments/project/finished",
+            defaults => { project_id => get('project')->id },
+        );
 
-        my $planned = get('project')->planned_tests;
-        if ($planned->count) {
-            div {
-                id is "planned-tests";
-                class is "commitlist";
-                h2 { "Planned tests" };
-                test_result($_) while $_ = $planned->next;
-            }
-        }
+        render_region(
+            name => "planned",
+            path => "/fragments/project/planned",
+            defaults => { project_id => get('project')->id },
+        );
     };
+};
+
+template '/fragments/project/finished' => sub {
+    my $project = Smokingit::Model::Project->new;
+    $project->load( get('project_id') );
+
+    my $tests = $project->finished_tests;
+    $tests->rows_per_page(10);
+    div {
+        id is "recent-tests";
+        h2 { "Recent tests" };
+        span {
+            class is "commitlist";
+            while (my $test = $tests->next) {
+                test_result($test);
+            }
+        };
+    };
+    Jifty->subs->update_on( topic => "test_queued" );
+    Jifty->subs->update_on( topic => "test_result" );
+};
+
+template '/fragments/project/planned' => sub {
+    my $project = Smokingit::Model::Project->new;
+    $project->load( get('project_id') );
+
+    my $planned = $project->planned_tests;
+    div {
+        id is "planned-tests";
+        h2 { "Planned tests" };
+        span {
+            class is "commitlist";
+            while (my $test = $planned->next) {
+                test_result($test);
+            }
+        };
+    };
+    Jifty->subs->update_on( topic => "test_queued" );
+    Jifty->subs->update_on( topic => "test_result" );
 };
 
 sub test_result {
     my $test = shift;
     my ($status, $msg, $in) = $test->commit->status($test);
     div {
-        class is "commit $status";
+        class is $test->commit->sha." config-".$test->configuration->id." commit $status";
         if ($status =~ /^(untested|queued|testing|broken)$/) {
             span {
-                attr { class => "okbox $status", title => $msg };
+                attr { class => "spacer" };
+                outs_raw("&nbsp;")
+            } if Jifty->web->current_user->id;
+            span {
+                attr { class => "okbox $status config-".$test->configuration->id, title => $msg };
                 outs_raw($in || "&nbsp;")
             };
             span {
@@ -88,6 +131,15 @@ sub test_result {
                 $test->commit->short_sha
             };
         } else {
+            span {
+                { class is "retestme" };
+                my $sha = $test->commit->sha;
+                my $config = $test->configuration->id;
+                js_handlers {
+                    onclick => "pubsub.send({type:'jifty.action',class:'Test',arguments:{commit:'$sha\[$config]'}})"
+                };
+                outs_raw "&nbsp;";
+            } if Jifty->web->current_user->id;
             hyperlink(
                 class   => "okbox $status",
                 label   => "&nbsp;",
@@ -140,7 +192,6 @@ template '/fragments/project/branch-list' => sub {
 
 sub branchlist {
     my ($branches, %args) = @_;
-    $branches->order_by( column => "name" );
     if ($branches->count) {
         $branches->prefetch( name => "current_commit" );
         my $results = $branches->join(
@@ -160,17 +211,24 @@ sub branchlist {
             name    => "smoke_results",
             alias   => $results,
             class   => "Smokingit::Model::SmokeResultCollection",
-            columns => [qw/id gearman_process configuration_id
+            columns => [qw/id queue_status configuration_id
                            error is_ok exit wait
                            passed failed parse_errors todo_passed/],
         );
+        my @order = ({ column   => "name" });
+        if (Jifty->web->current_user->id) {
+            my $actor = '%<'.Jifty->web->current_user->user_object->email.'>';
+            $actor = Jifty->handle->quote_value($actor);
+            unshift @order, { function => "main.current_actor like $actor", order => 'DESC' };
+        }
+        $branches->order_by( @order );
         div { class is "hline"; }
             if $args{hline};
         ul {
             while (my $b = $branches->next) {
                 $b->current_commit->hash_results( $b->prefetched("smoke_results") );
                 li {
-                    { class is $b->test_status; }
+                    { class is $b->test_status . " " . $b->current_commit->sha; }
                     hyperlink(
                         label => $b->name . " (" . $b->format_user('current_actor') . ")",
                         url => "branch/" . $b->name,

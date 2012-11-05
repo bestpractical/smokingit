@@ -7,6 +7,10 @@ use Jifty::View::Declare -base;
 template '/config' => page {
     my $c = get('config');
     redirect '/' unless $c;
+
+    redirect "/project/". $c->project->name . "/"
+        unless $c->current_user_can("update");
+
     page_title is $c->name;
     div {{class is "subtitle"} $c->project->name };
     form {
@@ -26,6 +30,11 @@ template '/config' => page {
 
 template '/new-configuration' => page {
     redirect '/' unless get('project');
+
+    my $config = Smokingit::Model::Configuration->new;
+    redirect "/project/". get('project')->name . "/"
+        unless $config->current_user_can("create");
+
     page_title is get('project')->name;
     div {{class is "subtitle"} "New configuration" };
     form {
