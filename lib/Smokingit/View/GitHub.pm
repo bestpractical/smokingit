@@ -35,13 +35,14 @@ template '/github' => sub {
                 or return "Branch is not currently tested\n";
         }
 
-        Jifty->api->call(
+        Jifty->rpc->call(
             name => "sync_project",
             args => $project->name,
         );
         return undef;
     };
     if ($@) {
+        warn "Failed to sync: $@";
         outs "ERROR: $@"
     } elsif ($ret) {
         outs "Ignored: $ret";
