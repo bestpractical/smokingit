@@ -287,7 +287,9 @@ When we get user accounts, this will become $branch->current_actor->name
 sub format_user {
     my ($self, $type) = @_;
     if ($self->can($type)) {
-        if ( $self->$type =~ m/<(.*?)@/ ) {
+        if ( not defined $self->$type ) {
+            return "somebody";
+        } elsif ( $self->$type =~ m/<(.*?)@/ ) {
             return $1;
         }
     } else {
