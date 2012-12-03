@@ -9,7 +9,7 @@ use Smokingit::Record schema {};
 use Jifty::Plugin::User::Mixin::Model::User;
 use Jifty::Plugin::Authentication::Password::Mixin::Model::User;
 
-sub is_protected {1}
+sub is_private {1}
 
 sub since { '0.0.6' }
 
