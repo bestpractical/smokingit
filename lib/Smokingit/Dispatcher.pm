@@ -4,6 +4,21 @@ use warnings;
 package Smokingit::Dispatcher;
 use Jifty::Dispatcher -base;
 
+# Limit down the set of actions via REST
+before '*' => run {
+    my $api = Jifty->api;
+    $api->hide(qr/^Smokingit::Action/);
+    if (Jifty->web->current_user->id) {
+        $api->allow("Logout");
+        $api->allow("Test");
+        $api->allow("UpdateBranch");
+        $api->allow(qr/^Smokingit::Action::(Create|Update|Delete)(Configuration|Project)$/);
+    } else {
+        $api->allow("Login");
+        $api->allow("GeneratePasswordToken");
+    }
+};
+
 # Auto redirect after create, to the project
 on '' => run {
     my $res = Jifty->web->response->result('create-project');
