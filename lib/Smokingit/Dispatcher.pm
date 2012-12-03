@@ -12,7 +12,8 @@ before '*' => run {
         $api->allow("Logout");
         $api->allow("Test");
         $api->allow("UpdateBranch");
-        $api->allow(qr/^Smokingit::Action::(Create|Update|Delete)(Configuration|Project)$/);
+        $api->allow("SearchBranch");
+        $api->allow(qr/^Smokingit::Action::(Create|Update|Delete|Search)(Configuration|Project)$/);
     } else {
         $api->allow("Login");
         $api->allow("GeneratePasswordToken");
