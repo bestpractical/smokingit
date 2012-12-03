@@ -63,6 +63,8 @@ use Smokingit::Record schema {
         is protected;
 };
 
+sub is_protected { 1 };
+
 sub create {
     my $self = shift;
     my %args = (
