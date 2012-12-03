@@ -10,31 +10,39 @@ use Smokingit::Record schema {
 
     column sha =>
         type is 'text',
+        is immutable,
         is mandatory,
         is unique,
         is case_sensitive,
         is indexed;
 
     column author =>
-        type is 'text';
+        type is 'text',
+        is immutable;
 
     column authored_time =>
-        is timestamp;
+        is timestamp,
+        is immutable;
 
     column committer =>
-        type is 'text';
+        type is 'text',
+        is immutable;
 
     column committed_time =>
-        is timestamp;
+        is timestamp,
+        is immutable;
 
     column parents =>
-        type is 'text';
+        type is 'text',
+        is immutable;
 
     column subject =>
-        type is 'text';
+        type is 'text',
+        is immutable;
 
     column body =>
-        type is 'text';
+        type is 'text',
+        is immutable;
 };
 sub is_protected {1}
 
