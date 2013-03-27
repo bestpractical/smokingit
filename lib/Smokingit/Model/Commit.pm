@@ -244,5 +244,13 @@ sub current_user_can {
     return $self->SUPER::current_user_can($right => %args);
 }
 
+sub jifty_serialize_format {
+    my $self = shift;
+    my $data = $self->SUPER::jifty_serialize_format(@_);
+    $data->{status}      = $self->status;
+    $data->{long_status} = $self->long_status;
+    return $data;
+}
+
 1;
 
