@@ -1,3 +1,11 @@
+use Plack::Builder;
 use Jifty;
 Jifty->new;
-Jifty->handler->psgi_app;
+
+builder {
+    enable "CrossOrigin",
+       origins => ["https://tickets.bestpractical.com", "http://localhost:8008"],
+       methods => ["GET"];
+
+    Jifty->handler->psgi_app;
+};
