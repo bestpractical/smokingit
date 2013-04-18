@@ -12,7 +12,6 @@ template '/github' => sub {
         die "No payload\n"   unless get('payload');
         my $json = eval { decode_json(get('payload')) }
             or die "Bad JSON: $@\n";
-        warn YAML::Dump($json);
 
         my $name = $json->{repository}{name}
             or die "No repository name found\n";
