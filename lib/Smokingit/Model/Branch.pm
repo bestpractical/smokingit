@@ -81,6 +81,7 @@ sub create {
     my $tip = $project->sha( delete $args{sha} );
     $args{current_commit_id} = $tip->id;
     $args{tested_commit_id}  = $tip->id;
+    $args{first_commit_id}   = undef; # Compute lazily
     $args{owner} = $tip->committer;
 
     my ($ok, $msg) = $self->SUPER::create(%args);
@@ -259,8 +260,16 @@ sub commit_list {
 sub first_commit {
     my $self = shift;
 
-    if ($self->status eq "master") {
+    my $id = $self->first_commit_id;
+    if ($id) {
+        my $commit = Smokingit::Model::Commit->new;
+        $commit->load($id);
+        return $commit;
+    } elsif ($self->status eq "master") {
         # No first commit for master branches
+        return undef;
+    } elsif (defined $id and $id == 0) {
+        # 0 means "Not found"
         return undef;
     }
 
@@ -272,7 +281,13 @@ sub first_commit {
     return unless @branch;
 
     my $commit = $self->project->sha( $branch[-1] );
-    return $commit->id ? $commit : undef;
+    if ($commit->id) {
+        $self->set_first_commit_id( $commit->id );
+        return $commit;
+    } else {
+        $self->set_first_commit_id( 0 );
+        return undef;
+    }
 }
 
 sub test_status {
