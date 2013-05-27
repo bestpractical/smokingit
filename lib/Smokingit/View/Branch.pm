@@ -54,8 +54,7 @@ template '/branch' => page {
         class is "commitlist biglist";
         for my $commit (@commits) {
             $commit->hash_results;
-            my $merge = $commit->subject =~ /^Merge branch /
-                ? "merge" : "nonmerge";
+            my $merge = $commit->is_merge ? "merge" : "nonmerge";
             div {
                 {class is $commit->sha." $merge commit ".$commit->status};
                 for my $config (@configs) {

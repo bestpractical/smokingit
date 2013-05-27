@@ -75,6 +75,14 @@ sub short_sha {
     return substr($self->sha,0,7);
 }
 
+sub is_merge {
+    my $self = shift;
+    my @parents = $self->parents;
+    return unless @parents > 1;
+    return $1 if $self->subject =~ /^Merge branch '(.*?)'/;
+    return 'Unknown branch';
+}
+
 sub run_smoke {
     my $self = shift;
     my $config = shift;
