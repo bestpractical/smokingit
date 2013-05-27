@@ -104,30 +104,20 @@ sub create {
 sub guess_merge_into {
     my $self = shift;
 
-    my @trunks;
-    my $branches = $self->project->trunk_or_relengs;
-    while (my $b = $branches->next) {
-        push @trunks, [$b->id, $b->current_commit->sha, $b->name];
-    }
+    my $first = $self->first_commit;
+    return unless $first;
 
-    # Find the commit before the first non-trunk commit, which is the
-    # commit this branch was branched off of
-    local $ENV{GIT_DIR} = $self->project->repository_path;
-    my $topic = $self->current_commit->sha;
-    my @revlist = map {chomp; $_} `git rev-list $topic @{[map {"^".$_->[1]} @trunks]}`;
-    my $branchpoint;
-    if (@revlist) {
-        $branchpoint = `git rev-parse $revlist[-1]~`;
-        chomp $branchpoint;
-    } else {
-        $branchpoint = $topic;
-    }
+    my ($branchpoint) = $first->parents;
+    return unless $branchpoint;
+    my $branchsha = $branchpoint->sha;
 
-    for my $t (@trunks) {
+    my $trunks = $self->project->trunk_or_relengs;
+    while (my $t = $trunks->next) {
         # Find the first trunk which contains all the branch point
-        # (i.e. branchpoint - trunk is the empty set)
-        next if `git rev-list --max-count=1 $branchpoint ^$t->[1]` =~ /\S/;
-        return $t->[0];
+        # (i.e. branchsha - trunk is the empty set)
+        my $sha = $t->current_commit->sha;
+        next if `git rev-list --max-count=1 $branchsha ^$sha` =~ /\S/;
+        return $t->id;
     }
     return undef;
 }
