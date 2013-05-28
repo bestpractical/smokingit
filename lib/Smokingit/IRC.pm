@@ -125,7 +125,7 @@ sub do_status {
             $project_obj->load_by_cols( name => $project );
             if (not $project_obj->id) {
                 return error_reply(
-                    $incoming => "No such project '$project'!",
+                    $incoming => "No such project $project!",
                 );
             }
             $branches->limit( column => "project_id", value => $project_obj->id );
@@ -134,11 +134,11 @@ sub do_status {
         my @matches = @{ $branches->items_array_ref };
         if (not @matches) {
             return error_reply(
-                $incoming => "No branch '$branch' found",
+                $incoming => "No branch $branch found",
             );
         } elsif (@matches > 1) {
             return error_reply(
-                $incoming => "Found '$branch' in ".
+                $incoming => "Found $branch in ".
                     join(", ", map {$_->project->name} @matches).
                     ".  Try, $matches[0]:$branch"
             );
@@ -162,7 +162,7 @@ sub do_sync {
         $project->load_by_cols( name => $what );
         if (not $project->id) {
             return error_reply(
-                $incoming => "No such project '$what'!",
+                $incoming => "No such project $what!",
             );
         }
         my @results = $project->sync;
@@ -239,16 +239,16 @@ sub do_analyze {
     if (($branch->first_commit and $commit->sha eq $branch->first_commit->sha)
             or not @tested_parents) {
         if ($commit->status eq "passing") {
-            return "New branch '$branchname' " .
+            return "New branch $branchname " .
               String::IRC->new("passes tests")->green;
         } else {
-            return "$author pushed a new branch '$branchname' which is " .
+            return "$author pushed a new branch $branchname which is " .
               String::IRC->new("failing tests")->red;
         }
     } elsif ($commit->is_merge){
         my $mergename = $commit->is_merge;
         if ($commit->status eq "passing") {
-            return "Merged '$mergename' into '$branchname', " .
+            return "Merged $mergename into $branchname, " .
               String::IRC->new("passes tests")->green;
         }
 
@@ -260,29 +260,29 @@ sub do_analyze {
         my $branch_good = $branch_commit->status eq "passing";
 
         if ($trunk_good and $branch_good) {
-            return "$author merged '$mergename' into '$branchname', which is " .
+            return "$author merged $mergename into $branchname, which is " .
                 String::IRC->new("failing tests")->red .
                 ", although both parents were passing";
         } elsif ($trunk_good and not $branch_good) {
-            return "$author merged '$mergename' (".
+            return "$author merged $mergename (".
               String::IRC->new("failing tests")->red.
-              ") into '$branchname', which is now ".
+              ") into $branchname, which is now ".
               String::IRC->new("failing tests")->red;
         } elsif (not $trunk_good and not $branch_good) {
-            return "$author merged '$mergename' (".
+            return "$author merged $mergename (".
               String::IRC->new("failing tests")->red.
-              ") into '$branchname', which is still ".
+              ") into $branchname, which is still ".
               String::IRC->new("failing tests")->red;
         } else {
-            return "$author merged '$mergename'".
-              " into '$branchname', which is still ".
+            return "$author merged $mergename".
+              " into $branchname, which is still ".
               String::IRC->new("failing tests")->red;
         }
     } elsif ($commit->status ne "passing") {
         # A new commit on an existing branch, which fails tests.  Let's
         # check if this is better or worse than the previous commit.
         if (@tested_parents == grep {$_->status eq "passing"} @tested_parents) {
-            return "'$branchname' by $author began ".
+            return "$branchname by $author began ".
                 String::IRC->new("failing tests")->red .
                 " as of ".$commit->short_sha;
         } else {
@@ -292,7 +292,7 @@ sub do_analyze {
     } elsif (grep {$_->status ne "passing"} @tested_parents) {
         # A new commit on an existing branch, which passes tests but
         # whose parents didn't!
-        return "'$branchname' by $author ".
+        return "$branchname by $author ".
             String::IRC->new("passes tests")->green .
             " as of ".$commit->short_sha;
     } else {
