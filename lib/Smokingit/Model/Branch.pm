@@ -3,6 +3,7 @@ use warnings;
 
 package Smokingit::Model::Branch;
 use Jifty::DBI::Schema;
+use Scalar::Util qw/blessed/;
 
 use Smokingit::Record schema {
     column project_id =>
@@ -109,15 +110,10 @@ sub guess_merge_into {
 
     my ($branchpoint) = $first->parents;
     return unless $branchpoint;
-    my $branchsha = $branchpoint->sha;
 
     my $trunks = $self->project->trunk_or_relengs;
     while (my $t = $trunks->next) {
-        # Find the first trunk which contains all the branch point
-        # (i.e. branchsha - trunk is the empty set)
-        my $sha = $t->current_commit->sha;
-        next if `git rev-list --max-count=1 $branchsha ^$sha` =~ /\S/;
-        return $t->id;
+        return $t->id if $t->contains($branchpoint);
     }
     return undef;
 }
@@ -199,6 +195,18 @@ sub is_under_review {
 sub is_tested {
     my $self = shift;
     return $self->status ne "ignore";
+}
+
+sub contains {
+    my $self = shift;
+    my $commit = shift;
+    $commit = $commit->sha if blessed($commit);
+
+    my $tip = $self->current_commit->sha;
+
+    local $ENV{GIT_DIR} = $self->project->repository_path;
+    `git merge-base --is-ancestor $commit $tip`;
+    return not $?;
 }
 
 sub commit_list {
