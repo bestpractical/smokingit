@@ -106,6 +106,15 @@ sub run_smoke {
     return $smoke->run_smoke;
 }
 
+sub smoke_results {
+    my $self = shift;
+    my $results = Smokingit::Model::SmokeResultCollection->new;
+    $results->limit( column => "commit_id", value => $self->id );
+    $results->limit( column => "project_id", value => $self->project->id );
+    $results->limit( column => "queue_status", operator => "IS", value => "NULL" );
+    return $results;
+}
+
 sub hash_results {
     my $self = shift;
     my $results = shift || $self->prefetched( "smoke_results" );
