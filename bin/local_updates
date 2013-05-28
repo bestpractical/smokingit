@@ -94,11 +94,8 @@ $listen->poll(
         } elsif ($message{status} eq "testing") {
             if ($smoke->queue_status) {
                 my $fraction = $message{complete}/($message{total} || 1);
-                warn "$fraction complete";
                 $smoke->set_queue_status(
                     int($fraction*100) ."% complete");
-            } else {
-                warn "Already complete!";
             }
         } else {
             warn "Unknown worker status: $message{status}";
