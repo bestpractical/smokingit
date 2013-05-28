@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+use YAML;
+
+use strict;
+use warnings;
+
+use Jifty;
+BEGIN { Jifty->new( no_request => 1 ); };
+use Smokingit::IRC;
+
+my %config = %{ Jifty->config->app('irc') || {} };
+unless (%config) {
+    print "IRC is not configured; edit your site_config.yml\n";
+    exit;
+}
+
+Smokingit::IRC->new->run;
