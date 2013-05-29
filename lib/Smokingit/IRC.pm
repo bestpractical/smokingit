@@ -146,7 +146,7 @@ sub do_status {
 
         # Need to re-parse if this got any updates
         return $self->do_status($incoming, $what)
-            if $matches[0]->project->as_superuser->sync;
+            if $matches[0]->as_superuser->sync;
 
         $what = $matches[0]->current_commit;
     }
