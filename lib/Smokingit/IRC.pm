@@ -35,6 +35,13 @@ sub BUILD {
             my $sub = Jifty->bus->new_listener;
             $sub->subscribe(Jifty->bus->topic("test_result"));
             $sub->poll( sub { $self->test_progress(@_) } );
+
+            my $out = IM::Engine::Outgoing::IRC::Channel->new(
+                channel => Jifty->config->app('irc')->{channel},
+                message => "I'm going to ban so hard",
+                command => "NOTICE",
+            );
+            $self->interface->send_message($out);
         },
     );
 }
