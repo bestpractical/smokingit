@@ -148,9 +148,10 @@ sub update_repository {
 
 sub sync {
     my $self = shift;
+    my @branches = @_;
 
     my $filter;
-    $filter->{$_} = 1 for @_;
+    $filter->{$_} = 1 for @branches;
 
     # Start a txn
     Jifty->handle->begin_transaction;
@@ -219,7 +220,7 @@ sub sync {
         push @messages, $branch->name." created, status $status";
     }
 
-    my $tests = $self->schedule_tests;
+    my $tests = $self->schedule_tests(@branches);
     Jifty->handle->commit;
 
     push @messages, "$tests commits scheduled for testing" if $tests;
@@ -228,22 +229,30 @@ sub sync {
 
 sub schedule_tests {
     my $self = shift;
+    my @for = @_;
 
     local $ENV{GIT_DIR} = $self->repository_path;
 
     my $smokes = 0;
-    warn "Scheduling tests";
+    warn "Scheduling tests" . (@for ? " for @for" : "");
 
     # Go through branches, masters first
     my @branches;
-    my $branches = $self->branches;
-    $branches->limit( column => "status", value => "master" );
-    push @branches, @{$branches->items_array_ref};
-    $branches = $self->branches;
-    $branches->limit( column => "status", operator => "!=", value => "master", entry_aggregator => "AND" );
-    $branches->limit( column => "status", operator => "!=", value => "ignore", entry_aggregator => "AND" );
-    push @branches, @{$branches->items_array_ref};
-    warn "Branches: @{[map {$_->name} @branches]}\n";
+    if (@for) {
+        my $branches = $self->branches;
+        $branches->limit( column => "name", value => $_ )
+            for @for;
+        push @branches, @{ $branches->items_array_ref };
+    } else {
+        my $branches = $self->branches;
+        $branches->limit( column => "status", value => "master" );
+        push @branches, @{$branches->items_array_ref};
+        $branches = $self->branches;
+        $branches->limit( column => "status", operator => "!=", value => "master", entry_aggregator => "AND" );
+        $branches->limit( column => "status", operator => "!=", value => "ignore", entry_aggregator => "AND" );
+        push @branches, @{$branches->items_array_ref};
+        warn "Branches: @{[map {$_->name} @branches]}\n";
+    }
     return unless @branches;
 
     my @configs = @{$self->configurations->items_array_ref};
