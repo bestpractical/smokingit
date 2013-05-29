@@ -167,9 +167,9 @@ sub sync {
     local $ENV{GIT_DIR} = $self->repository_path;
 
     my %branches;
-    for ($self->repository->ref_names) {
-        next unless s{^refs/heads/}{};
-        $branches{$_}++;
+    for my $line (`git for-each-ref refs/heads/`) {
+        next unless $line =~ m{^([a-f0-9]+)\s+commit\s+refs/heads/(\S+)};
+        $branches{$2} = $1;
     }
 
     my @messages;
@@ -180,8 +180,7 @@ sub sync {
             push @messages, $branch->name." deleted";
             next;
         }
-        delete $branches{$branch->name};
-        my $new_ref = $self->repository->ref_sha1("refs/heads/" . $branch->name);
+        my $new_ref = delete $branches{$branch->name};
         my $old_ref = $branch->current_commit->sha;
         next if $new_ref eq $old_ref;
 
@@ -198,7 +197,6 @@ sub sync {
     for my $name (($has_master ? ("master") : ()), sort keys %branches) {
         warn "New branch $name\n";
         my $trunk = ($name eq "master");
-        my $sha = $self->repository->ref_sha1("refs/heads/$name");
         my $branch = Smokingit::Model::Branch->new;
         my $status = $trunk    ? "master"  :
                      $test_new ? "hacking" :
@@ -206,7 +204,7 @@ sub sync {
         my ($ok, $msg) = $branch->create(
             project_id    => $self->id,
             name          => $name,
-            sha           => $sha,
+            sha           => $branches{$name},
             status        => $status,
             long_status   => "",
             to_merge_into => undef,
