@@ -21,23 +21,50 @@ sub validate_commit {
     my $self = shift;
     my $arg = shift;
 
-    unless ($arg =~ /^([0-9a-fA-F]+)(?:\s*\[\s*(.*)\s*\])?(?:\s*\{\s*(.*)\s*\})?$/) {
+    unless ($arg =~ m{^\s*([0-9a-f]+|(?:\S+?:)?\S+?)(?:\s*\[\s*([^\]]+)\s*\])?(?:\s*\{\s*[^\}]+\s*\})?\s*$}i) {
         return $self->validation_error(
-            commit => "That doesn't look like a SHA" );
+            commit => "That doesn't look like a valid ref" );
     }
-    my ($sha,$config_text, $branch_text) = ($1, $2, $3);
+    my ($ref,$config_text, $branch_text) = ($1, $2, $3);
 
-    my $commits = Smokingit::Model::CommitCollection->new;
-    $commits->limit( column => "sha", operator => "like", value => "$sha%" );
-    return $self->validation_error(
-        commit => "Unknown SHA $sha"
-    ) if $commits->count == 0;
-    return $self->validation_error(
-        commit => "Ambiguous SHA (".$commits->count." matches)"
-    ) if $commits->count > 1;
+    my $commit;
+    if ($ref =~ /^[0-9a-f]+$/) {
+        my $commits = Smokingit::Model::CommitCollection->new;
+        $commits->limit( column => "sha", operator => "like", value => "$ref%" );
+        return $self->validation_error(
+            commit => "Unknown SHA $ref"
+        ) if $commits->count == 0;
+        return $self->validation_error(
+            commit => "Ambiguous SHA (".$commits->count." matches)"
+        ) if $commits->count > 1;
+        $commit = $commits->first;
+    } else {
+        my ($project, $branch) = $ref =~ /^\s*(?:(\S+):)?(\S+)\s*$/;
+        my $branches = Smokingit::Model::BranchCollection->new;
+        $branches->limit( column => "name", value => "$branch" );
 
-    my $commit = $commits->first;
-    $sha = $commit->sha;
+        if ($project) {
+            my $project_obj = Smokingit::Model::Project->new;
+            $project_obj->load_by_cols( name => $project );
+            return $self-> validation_error(
+                commit => "No such project $project"
+            ) unless $project_obj->id;
+            $branches->limit( column => "project_id", value => $project_obj->id );
+        }
+
+        return $self->validation_error(
+            commit => "No branch $branch found",
+        ) if $branches->count == 0;
+        return $self->validation_error(
+            commit => "Ambiguous branch (".$branches->count." matches)"
+        ) if $branches->count > 1;
+
+        $commit = $branches->first->current_commit;
+        $branch_text ||= $branches->first->name;
+    }
+
+
+    my $sha = $commit->sha;
 
     if (not $config_text) {
         # We'll do all of them
