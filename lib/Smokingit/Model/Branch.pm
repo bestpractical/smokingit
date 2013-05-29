@@ -102,6 +102,11 @@ sub create {
     return ($ok, $msg);
 }
 
+sub sync {
+    my $self = shift;
+    return $self->project->sync( $self->name );
+}
+
 sub guess_merge_into {
     my $self = shift;
 
