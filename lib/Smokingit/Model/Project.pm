@@ -149,6 +149,9 @@ sub update_repository {
 sub sync {
     my $self = shift;
 
+    my $filter;
+    $filter->{$_} = 1 for @_;
+
     # Start a txn
     Jifty->handle->begin_transaction;
 
@@ -169,12 +172,14 @@ sub sync {
     my %branches;
     for my $line (`git for-each-ref refs/heads/`) {
         next unless $line =~ m{^([a-f0-9]+)\s+commit\s+refs/heads/(\S+)};
+        next if $filter and not $filter->{$2};
         $branches{$2} = $1;
     }
 
     my @messages;
     my $branches = $self->branches;
     while (my $branch = $branches->next) {
+        next if $filter and not $filter->{$branch->name};
         if (not $branches{$branch->name}) {
             $branch->delete;
             push @messages, $branch->name." deleted";
