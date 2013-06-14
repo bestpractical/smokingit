@@ -79,6 +79,8 @@ sub incoming {
         return $self->do_status($incoming, $1);
     } elsif ($msg =~ /^(?:re)?sync(?:\s+(.*))?/) {
         return $self->do_sync($incoming, $1);
+    } elsif ($msg =~ /^queued?(?:\s+(.*))?/) {
+        return $self->do_queued($incoming, $1);
     } else {
         return $incoming->reply( "What?" );
     }
@@ -193,6 +195,43 @@ sub do_sync {
         }
         return $incoming->reply("Synchronized ".$projects->count." projects");
     }
+}
+
+sub do_queued {
+    my $self = shift;
+    my ($incoming, $what) = @_;
+
+    if ($what) {
+        $what = $self->lookup_commitish($incoming, $what);
+        return $what unless $what->isa("Smokingit::Model::Commit");
+    }
+
+    my $queued = Smokingit::Model::SmokeResultCollection->queued;
+    my $count  = $queued->count;
+    my $msg    = "$count test". ($count == 1 ? "" : "s") ." queued";
+
+    if ($what) {
+        my ($before, $found) = (0, undef);
+        while (my $test = $queued->next) {
+            $found = 1, last if $test->commit->sha eq $what->sha;
+            $before++;
+        }
+        my $short = $what->short_sha;
+        if ($found) {
+            if ($before == 0) {
+                $msg .= "; $short first in line";
+            } elsif ($before == 1) {
+                $msg .= "; $short up next";
+            } else {
+                $msg .= "; $before test".($before == 1 ? "" : "s")
+                      . " before $short";
+            }
+        } else {
+            $msg .= "; $short not queued!";
+        }
+    }
+
+    return $incoming->reply($msg);
 }
 
 sub test_progress {
