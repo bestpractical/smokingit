@@ -85,7 +85,7 @@ template '/fragments/project/finished' => sub {
         span {
             class is "commitlist";
             while (my $test = $tests->next) {
-                test_result($test);
+                Smokingit::View::test_result($test);
             }
         };
     };
@@ -104,58 +104,12 @@ template '/fragments/project/planned' => sub {
         span {
             class is "commitlist";
             while (my $test = $planned->next) {
-                test_result($test);
+                Smokingit::View::test_result($test);
             }
         };
     };
     Jifty->subs->update_on( topic => "test_queued" );
     Jifty->subs->update_on( topic => "test_result" );
-};
-
-sub test_result {
-    my $test = shift;
-    my ($status, $msg, $in) = $test->commit->status($test);
-    div {
-        class is $test->commit->sha." config-".$test->configuration->id." commit $status";
-        if ($status =~ /^(untested|queued|testing|broken)$/) {
-            span {
-                attr { class => "spacer" };
-                outs_raw("&nbsp;")
-            } if Jifty->web->current_user->id;
-            span {
-                attr { class => "okbox $status config-".$test->configuration->id, title => $msg };
-                outs_raw($in || "&nbsp;")
-            };
-            span {
-                attr { class => "sha", title => $msg };
-                $test->commit->short_sha
-            };
-        } else {
-            span {
-                { class is "retestme" };
-                my $sha = $test->commit->sha;
-                my $config = $test->configuration->id;
-                js_handlers {
-                    onclick => "pubsub.send({type:'jifty.action',class:'Test',arguments:{commit:'$sha\[$config]'}})"
-                };
-                outs_raw "&nbsp;";
-            } if Jifty->web->current_user->id;
-            hyperlink(
-                class   => "okbox $status",
-                label   => "&nbsp;",
-                escape_label => 0,
-                url     => "/test/".$test->commit->sha."/".$test->configuration->name,
-                tooltip => $msg,
-            );
-            hyperlink(
-                tooltip => $msg,
-                class   => "sha",
-                url     => "/test/".$test->commit->sha."/".$test->configuration->name,
-                label   => $test->commit->short_sha,
-            );
-        }
-        outs( " on ".$test->branch_name. " using ".$test->configuration->name );
-    }
 };
 
 template '/fragments/project/branch-list' => sub {

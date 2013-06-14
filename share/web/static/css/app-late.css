@@ -95,6 +95,21 @@ li {
 
 
 /* Front page */
+#all-planned-tests h2 {
+    margin-top: 0;
+} 
+
+#project-list {
+    border-right: 1px dotted #779;
+    position: relative;
+    width: 40%;
+    float: left;
+}
+
+#create-project {
+    clear: both;
+}
+
 #create-project input.argument-repository_url {
     width: 30em;
 }
