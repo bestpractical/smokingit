@@ -115,7 +115,7 @@ sub do_status {
             return error_reply(
                 $incoming => "No such SHA!"
             );
-        } elsif (@matches > 0) {
+        } elsif (@matches > 1) {
             return error_reply(
                 $incoming => "Found ".(@matches+0)." matching SHAs!",
             );
