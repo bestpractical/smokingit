@@ -109,16 +109,8 @@ sub trunk_or_relengs {
 sub planned_tests {
     my $self = shift;
     my $tests = Smokingit::Model::SmokeResultCollection->new;
-    $tests->limit(
-        column => "queue_status",
-        operator => "IS NOT",
-        value => "NULL"
-    );
+    $tests->limit_to_queued;
     $tests->limit( column => "project_id", value => $self->id );
-    $tests->order_by(
-        { column => "queued_at", order  => "asc" },
-        { column => "id",        order  => "asc" },
-    );
     $tests->prefetch( name => "commit" );
     return $tests;
 }
@@ -210,7 +202,7 @@ sub sync {
         my ($ok, $msg) = $branch->create(
             project_id    => $self->id,
             name          => $name,
-            sha           => $branches{$name},
+            sha           => ($name eq "master" ? $has_master : $branches{$name}),
             status        => $status,
             long_status   => "",
             to_merge_into => undef,

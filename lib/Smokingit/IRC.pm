@@ -79,6 +79,8 @@ sub incoming {
         return $self->do_status($incoming, $1);
     } elsif ($msg =~ /^(?:re)?sync(?:\s+(.*))?/) {
         return $self->do_sync($incoming, $1);
+    } elsif ($msg =~ /^queued?(?:\s+(.*))?/) {
+        return $self->do_queued($incoming, $1);
     } else {
         return $incoming->reply( "What?" );
     }
@@ -105,6 +107,17 @@ sub do_retest {
 }
 
 sub do_status {
+    my $self     = shift;
+    my $incoming = shift;
+    my $what     = $self->lookup_commitish($incoming, @_);
+    if ($what->isa("Smokingit::Model::Commit")) {
+        return $incoming->reply( $what->short_sha . " is " . $what->status );
+    } else {
+        return $what;
+    }
+}
+
+sub lookup_commitish {
     my $self = shift;
     my ($incoming, $what) = @_;
     if ($what =~ /^\s*([a-fA-F0-9]{5,})\s*$/) {
@@ -115,13 +128,13 @@ sub do_status {
             return error_reply(
                 $incoming => "No such SHA!"
             );
-        } elsif (@matches > 0) {
+        } elsif (@matches > 1) {
             return error_reply(
                 $incoming => "Found ".(@matches+0)." matching SHAs!",
             );
         }
 
-        $what = $matches[0];
+        return $matches[0];
     } else {
         my ($project, $branch) = $what =~ /^\s*(?:(\S+):)?(\S+)\s*$/;
         my $branches = Smokingit::Model::BranchCollection->new;
@@ -152,12 +165,11 @@ sub do_status {
         }
 
         # Need to re-parse if this got any updates
-        return $self->do_status($incoming, $what)
+        return $self->lookup_commitish($incoming, $what)
             if $matches[0]->as_superuser->sync;
 
-        $what = $matches[0]->current_commit;
+        return $matches[0]->current_commit;
     }
-    return $incoming->reply( $what->short_sha . " is " . $what->status );
 }
 
 sub do_sync {
@@ -183,6 +195,43 @@ sub do_sync {
         }
         return $incoming->reply("Synchronized ".$projects->count." projects");
     }
+}
+
+sub do_queued {
+    my $self = shift;
+    my ($incoming, $what) = @_;
+
+    if ($what) {
+        $what = $self->lookup_commitish($incoming, $what);
+        return $what unless $what->isa("Smokingit::Model::Commit");
+    }
+
+    my $queued = Smokingit::Model::SmokeResultCollection->queued;
+    my $count  = $queued->count;
+    my $msg    = "$count test". ($count == 1 ? "" : "s") ." queued";
+
+    if ($what) {
+        my ($before, $found) = (0, undef);
+        while (my $test = $queued->next) {
+            $found = 1, last if $test->commit->sha eq $what->sha;
+            $before++;
+        }
+        my $short = $what->short_sha;
+        if ($found) {
+            if ($before == 0) {
+                $msg .= "; $short first in line";
+            } elsif ($before == 1) {
+                $msg .= "; $short up next";
+            } else {
+                $msg .= "; $before test".($before == 1 ? "" : "s")
+                      . " before $short";
+            }
+        } else {
+            $msg .= "; $short not queued!";
+        }
+    }
+
+    return $incoming->reply($msg);
 }
 
 sub test_progress {

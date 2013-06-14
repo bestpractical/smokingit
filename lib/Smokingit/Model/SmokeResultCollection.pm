@@ -12,4 +12,28 @@ sub implicit_clauses {
     $self->columns(@cols);
 }
 
+sub queued {
+    my $class = shift;
+       $class = ref($class) if ref($class);
+
+    my $queued = $class->new;
+    $queued->limit_to_queued;
+    $queued->prefetch( name => "project" );
+    $queued->prefetch( name => "commit" );
+    return $queued;
+}
+
+sub limit_to_queued {
+    my $self = shift;
+    $self->limit(
+        column => "queue_status",
+        operator => "IS NOT",
+        value => "NULL"
+    );
+    $self->order_by(
+        { column => "queued_at", order  => "asc" },
+        { column => "id",        order  => "asc" },
+    );
+}
+
 1;
