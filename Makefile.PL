@@ -4,5 +4,6 @@ name        'Smokingit';
 version     '0.01';
 requires    'Jifty' => '1.01209';
 requires    'Git::PurePerl';
+requires    'Plack::Middleware::CrossOrigin';
 
 WriteAll;
