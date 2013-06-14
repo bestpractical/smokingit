@@ -202,7 +202,7 @@ sub sync {
         my ($ok, $msg) = $branch->create(
             project_id    => $self->id,
             name          => $name,
-            sha           => $branches{$name},
+            sha           => ($name eq "master" ? $has_master : $branches{$name}),
             status        => $status,
             long_status   => "",
             to_merge_into => undef,
