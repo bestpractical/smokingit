@@ -105,6 +105,17 @@ sub do_retest {
 }
 
 sub do_status {
+    my $self     = shift;
+    my $incoming = shift;
+    my $what     = $self->lookup_commitish($incoming, @_);
+    if ($what->isa("Smokingit::Model::Commit")) {
+        return $incoming->reply( $what->short_sha . " is " . $what->status );
+    } else {
+        return $what;
+    }
+}
+
+sub lookup_commitish {
     my $self = shift;
     my ($incoming, $what) = @_;
     if ($what =~ /^\s*([a-fA-F0-9]{5,})\s*$/) {
@@ -121,7 +132,7 @@ sub do_status {
             );
         }
 
-        $what = $matches[0];
+        return $matches[0];
     } else {
         my ($project, $branch) = $what =~ /^\s*(?:(\S+):)?(\S+)\s*$/;
         my $branches = Smokingit::Model::BranchCollection->new;
@@ -152,12 +163,11 @@ sub do_status {
         }
 
         # Need to re-parse if this got any updates
-        return $self->do_status($incoming, $what)
+        return $self->lookup_commitish($incoming, $what)
             if $matches[0]->as_superuser->sync;
 
-        $what = $matches[0]->current_commit;
+        return $matches[0]->current_commit;
     }
-    return $incoming->reply( $what->short_sha . " is " . $what->status );
 }
 
 sub do_sync {
