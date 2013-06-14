@@ -14,4 +14,9 @@ unless (%config) {
     exit;
 }
 
+unless ($config{host}) {
+    print "No host specified for IRC; edit your site_config.yml\n";
+    exit;
+}
+
 Smokingit::IRC->new->run;
