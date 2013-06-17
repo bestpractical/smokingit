@@ -111,7 +111,12 @@ sub do_status {
     my $incoming = shift;
     my $what     = $self->lookup_commitish($incoming, @_);
     if ($what->isa("Smokingit::Model::Commit")) {
-        return $incoming->reply( $what->short_sha . " is " . $what->status );
+        my $msg = $what->short_sha . " is " . $what->status;
+
+        $msg .= "; " . $self->queue_status($what)
+            if $what->status eq "queued";
+
+        return $incoming->reply( $msg );
     } else {
         return $what;
     }
@@ -210,28 +215,33 @@ sub do_queued {
     my $count  = $queued->count;
     my $msg    = "$count test". ($count == 1 ? "" : "s") ." queued";
 
-    if ($what) {
-        my ($before, $found) = (0, undef);
-        while (my $test = $queued->next) {
-            $found = 1, last if $test->commit->sha eq $what->sha;
-            $before++;
-        }
-        my $short = $what->short_sha;
-        if ($found) {
-            if ($before == 0) {
-                $msg .= "; $short first in line";
-            } elsif ($before == 1) {
-                $msg .= "; $short up next";
-            } else {
-                $msg .= "; $before test".($before == 1 ? "" : "s")
-                      . " before $short";
-            }
-        } else {
-            $msg .= "; $short not queued!";
-        }
-    }
+    $msg .= join(" ", ";", $what->short_sha, $self->queue_status($what, $queued))
+        if $what;
 
     return $incoming->reply($msg);
+}
+
+sub queue_status {
+    my ($self, $commit, $queued) = @_;
+    $queued ||= Smokingit::Model::SmokeResultCollection->queued;
+
+    my ($before, $found) = (0, undef);
+    while (my $test = $queued->next) {
+        $found = 1, last if $test->commit->sha eq $commit->sha;
+        $before++;
+    }
+
+    if ($found) {
+        if ($before == 0) {
+            return "first in line";
+        } elsif ($before == 1) {
+            return "up next";
+        } else {
+            return "behind $before test".($before == 1 ? "" : "s");
+        }
+    } else {
+        return "not queued!";
+    }
 }
 
 sub test_progress {
