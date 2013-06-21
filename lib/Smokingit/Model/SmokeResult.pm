@@ -171,8 +171,10 @@ sub post_result {
     my $smokeid = delete $result{smoke_id};
     $self->load( $smokeid );
     if (not $self->id) {
+        Jifty->handle->rollback;
         return (0, "Invalid smoke ID: $smokeid");
     } elsif (not $self->queue_status) {
+        Jifty->handle->rollback;
         return (0, "Smoke report on $smokeid which wasn't being smoked? (last report at @{[$self->submitted_at]})");
     }
 
