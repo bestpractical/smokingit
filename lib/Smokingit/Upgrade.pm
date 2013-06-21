@@ -34,4 +34,9 @@ since '0.0.4' => sub {
     }
 };
 
+# Time elapsed became a float
+since '0.0.8' => sub {
+    Jifty->handle->simple_query("ALTER TABLE smoke_results ALTER COLUMN elapsed TYPE float");
+};
+
 1;

@@ -47,7 +47,8 @@ use Smokingit::Record schema {
 
     column aggregator =>
         type is 'blob',
-        filters are 'Jifty::DBI::Filter::Storable';
+        filters are 'Jifty::DBI::Filter::Storable',
+        till '0.0.8';
 
     column is_ok        => is boolean;
 
@@ -58,11 +59,13 @@ use Smokingit::Record schema {
     column skipped      => type is 'integer';
     column todo         => type is 'integer';
     column todo_passed  => type is 'integer';
+    column total        => type is 'integer',
+        since '0.0.8';
 
     column wait         => type is 'integer';
     column exit         => type is 'integer';
 
-    column elapsed      => type is 'integer';
+    column elapsed      => type is 'float';
 };
 sub is_protected {1}
 
@@ -138,31 +141,10 @@ sub post_result {
     my ($arg) = @_;
 
     my %result = %{ $arg };
+    delete $result{start};
+    delete $result{end};
 
-    # Properties to extract from the aggregator
-    my @props =
-        qw/failed
-           parse_errors
-           passed
-           planned
-           skipped
-           todo
-           todo_passed
-           wait
-           exit/;
-
-    # Aggregator might not exist if we had a configure failure
-    require TAP::Parser::Aggregator;
-    my $a = $result{aggregator};
-    if ($a) {
-        $result{$_} = $a->$_ for @props;
-        $result{is_ok}      = not($a->has_problems);
-        $result{elapsed}    = $a->elapsed->[0];
-        $result{error}      = undef;
-    } else {
-        # Unset the existing data if there was a fail
-        $result{$_} = undef for @props, "is_ok", "elapsed";
-    }
+    my %tests = %{ delete $result{test} };
 
     my $status = Smokingit::Status->new( $self );
 
@@ -189,6 +171,29 @@ sub post_result {
     }
     # Mark as no longer smoking
     $self->set_queue_status(undef);
+
+    # Delete all previous test file results
+    my $testfiles = Smokingit::Model::SmokeFileResultCollection->new(
+        current_user => Smokingit::CurrentUser->superuser,
+    );
+    $testfiles->limit( column => "smoke_result_id", value => $self->id );
+    while (my $fileresult = $testfiles->next) {
+        $fileresult->delete;
+    }
+
+    # Create rows for all test files
+    for my $filename (sort keys %tests) {
+        my $fileresult = Smokingit::Model::SmokeFileResult->new(
+            current_user => Smokingit::CurrentUser->superuser,
+        );
+        my ($ok, $msg) = $fileresult->create(
+            %{$tests{$filename}},
+            filename => $filename,
+            smoke_result_id => $self->id,
+        );
+        warn "Failed to create entry for $filename: $msg"
+            unless $ok;
+    }
 
     # And commit all of that
     Jifty->handle->commit;

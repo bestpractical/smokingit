@@ -20,11 +20,6 @@ template '/smoke' => page {
         return;
     }
 
-    my $a = $s->aggregator;
-    pre {
-        YAML::Dump($a);
-    };
-
 };
 
 1;
