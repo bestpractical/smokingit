@@ -19,7 +19,7 @@ since '0.0.3' => sub {
     }
 };
 
-# The branch name beceom a fixed part of the smoke test, and not a
+# The branch name became a fixed part of the smoke test, and not a
 # reference to the branch id; thus, when branches are removed, the smoke
 # result still knows what branch it was on originally.
 since '0.0.4' => sub {
