@@ -1,3 +1,5 @@
+@import "testresults.css";
+
 html {
   padding: .75em;
   background: #223;
@@ -349,15 +351,6 @@ li {
 
 #branch-commits .nonmerge .subject {
   margin-left: 2em;
-}
-
-
-/* Commit pages */
-.failingtest .header {
-  border-bottom: 5px dotted #f11;
-}
-.passingtest .header {
-  border-bottom: 5px dotted #1c1;
 }
 
 

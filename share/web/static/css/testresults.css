@@ -1,0 +1,29 @@
+/* Commit pages */
+.failingtest .header {
+    border-bottom: 5px dotted #f11;
+}
+.passingtest .header {
+    border-bottom: 5px dotted #1c1;
+}
+
+.passingfile, .failingfile {
+    border-collapse: collapse;
+    padding: 0.1em 1em;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.passingfile {
+    border: 1px solid #cfc;
+    background-color: #beb;
+}
+
+.failingfile {
+    border: 1px solid #fcc;
+    background-color: #f99;
+}
+
+.elapsed {
+    position: absolute;
+    right: 2em;
+}

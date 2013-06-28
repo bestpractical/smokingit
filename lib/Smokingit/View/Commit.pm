@@ -38,6 +38,20 @@ template '/smoke' => page {
         return;
     }
 
+    my $results = Smokingit::Model::SmokeFileResultCollection->new;
+    $results->limit( column => "smoke_result_id", value => $s->id );
+    $results->order_by( column => "filename" );
+    $results->columns( "filename", "is_ok", "elapsed" );
+    while (my $result = $results->next) {
+        div {
+            class is ($result->is_ok ? "passingfile" : "failingfile");
+            outs $result->filename;
+            span {
+                class is "elapsed";
+                outs sprintf "(%.2fs)", $result->elapsed;
+            };
+        };
+    }
 };
 
 1;
