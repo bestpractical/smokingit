@@ -190,14 +190,14 @@ sub do_sync {
                 $incoming => "No such project $what!",
             );
         }
-        my @results = $project->sync;
+        my @results = $project->as_superuser->sync;
         return $incoming->reply("No changes") unless @results;
         return $incoming->reply(join("; ", @results));
     } else {
         my $projects = Smokingit::Model::ProjectCollection->new;
         $projects->unlimit;
         while (my $p = $projects->next) {
-            $p->sync;
+            $p->as_superuser->sync;
         }
         return $incoming->reply("Synchronized ".$projects->count." projects");
     }
