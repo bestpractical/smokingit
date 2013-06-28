@@ -7,6 +7,24 @@ use Jifty::View::Declare -base;
 template '/commit' => page {
     redirect '/' unless get('commit');
     page_title is get('commit')->short_sha;
+
+    my $commit = get('commit');
+
+    ul {
+        my $configs = $b->project->configurations;
+        while (my $config = $configs->next) {
+            li {
+                my $smoke = Smokingit::Model::SmokeResult->new;
+                $smoke->load_by_cols(
+                    project_id       => $commit->project->id,
+                    configuration_id => $config->id,
+                    commit_id        => $commit->id,
+                );
+                next unless $smoke->id;
+                Smokingit::View::test_result( $smoke );
+            }
+        }
+    }
 };
 
 template '/smoke' => page {
