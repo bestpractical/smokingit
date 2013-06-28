@@ -181,7 +181,8 @@ sub do_sync {
     my $self = shift;
     my ($incoming, $what) = @_;
 
-    if ($what) {
+    if (defined $what and $what =~ /^\s*(.*?)\s*$/) {
+        $what = $1;
         my $project = Smokingit::Model::Project->new;
         $project->load_by_cols( name => $what );
         if (not $project->id) {
