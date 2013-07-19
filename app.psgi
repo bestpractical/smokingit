@@ -7,7 +7,7 @@ builder {
        origins => [
            "http://smokingit.bestpractical.com",
            "https://tickets.bestpractical.com",
-           "http://localhost:8008"
+           "http://localhost:8888"
        ],
        methods => ["GET"];
 

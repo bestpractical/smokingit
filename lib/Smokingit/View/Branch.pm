@@ -48,14 +48,13 @@ template '/branch' => page {
 
     my $project_id = $b->project->id;
     my @commits = $b->commit_list;
-    my $branchpoint = $b->branchpoint(@commits+1);
+    my $first = $b->first_commit;
     div {
         id is "branch-commits";
         class is "commitlist biglist";
         for my $commit (@commits) {
             $commit->hash_results;
-            my $merge = $commit->subject =~ /^Merge branch /
-                ? "merge" : "nonmerge";
+            my $merge = $commit->is_merge ? "merge" : "nonmerge";
             div {
                 {class is $commit->sha." $merge commit ".$commit->status};
                 for my $config (@configs) {
@@ -99,7 +98,7 @@ template '/branch' => page {
                 }
                 span {{class is "subject"} $commit->subject };
             };
-            if ($branchpoint and $branchpoint->id == $commit->id) {
+            if ($first and $first->id == $commit->id) {
                 div { { class is "branchpoint" } };
             }
         }

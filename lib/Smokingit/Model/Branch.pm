@@ -3,6 +3,7 @@ use warnings;
 
 package Smokingit::Model::Branch;
 use Jifty::DBI::Schema;
+use Scalar::Util qw/blessed/;
 
 use Smokingit::Record schema {
     column project_id =>
@@ -81,7 +82,7 @@ sub create {
     my $tip = $project->sha( delete $args{sha} );
     $args{current_commit_id} = $tip->id;
     $args{tested_commit_id}  = $tip->id;
-    $args{first_commit_id}   = $tip->id;
+    $args{first_commit_id}   = undef; # Compute lazily
     $args{owner} = $tip->committer;
 
     my ($ok, $msg) = $self->SUPER::create(%args);
@@ -101,33 +102,23 @@ sub create {
     return ($ok, $msg);
 }
 
+sub sync {
+    my $self = shift;
+    return $self->project->sync( $self->name );
+}
+
 sub guess_merge_into {
     my $self = shift;
 
-    my @trunks;
-    my $branches = $self->project->trunk_or_relengs;
-    while (my $b = $branches->next) {
-        push @trunks, [$b->id, $b->current_commit->sha, $b->name];
-    }
+    my $first = $self->first_commit;
+    return unless $first;
 
-    # Find the commit before the first non-trunk commit, which is the
-    # commit this branch was branched off of
-    local $ENV{GIT_DIR} = $self->project->repository_path;
-    my $topic = $self->current_commit->sha;
-    my @revlist = map {chomp; $_} `git rev-list $topic @{[map {"^".$_->[1]} @trunks]}`;
-    my $branchpoint;
-    if (@revlist) {
-        $branchpoint = `git rev-parse $revlist[-1]~`;
-        chomp $branchpoint;
-    } else {
-        $branchpoint = $topic;
-    }
+    my ($branchpoint) = $first->parents;
+    return unless $branchpoint;
 
-    for my $t (@trunks) {
-        # Find the first trunk which contains all the branch point
-        # (i.e. branchpoint - trunk is the empty set)
-        next if `git rev-list --max-count=1 $branchpoint ^$t->[1]` =~ /\S/;
-        return $t->[0];
+    my $trunks = $self->project->trunk_or_relengs;
+    while (my $t = $trunks->next) {
+        return $t->id if $t->contains($branchpoint);
     }
     return undef;
 }
@@ -211,16 +202,31 @@ sub is_tested {
     return $self->status ne "ignore";
 }
 
+sub contains {
+    my $self = shift;
+    my $commit = shift;
+    $commit = $commit->sha if blessed($commit);
+
+    my $tip = $self->current_commit->sha;
+
+    local $ENV{GIT_DIR} = $self->project->repository_path;
+    `git merge-base --is-ancestor $commit $tip`;
+    return not $?;
+}
+
 sub commit_list {
     my $self = shift;
     local $ENV{GIT_DIR} = $self->project->repository_path;
 
-    my $first = $self->first_commit->sha;
+    my $first = $self->first_commit ? "^".$self->first_commit->sha."~" : "";
     my $last = $self->current_commit->sha;
-    my @revs = map {chomp; $_} `git rev-list ^$first $last --topo-order --max-count=50`;
+    my @revs = map {chomp; $_} `git rev-list $first $last --topo-order --max-count=50`;
     my $left = 50 - @revs; $left = 11 if $left > 11;
-    push @revs, map {chomp; $_} `git rev-list $first --topo-order --max-count=$left`
-        if $left > 0;
+    if ($self->first_commit) {
+        $first = $self->first_commit->sha . "~";
+        push @revs, map {chomp; $_} `git rev-list $first --topo-order --max-count=$left`
+            if $left > 0;
+    }
 
     my $commits = Smokingit::Model::CommitCollection->new;
     $commits->limit( column => "project_id", value => $self->project->id );
@@ -254,21 +260,37 @@ sub commit_list {
     return map $commits{$_} || $self->project->sha($_), @revs;
 }
 
-sub branchpoint {
+sub first_commit {
     my $self = shift;
-    my $max = shift || 100;
-    return undef if $self->status eq "master";
-    return undef unless $self->to_merge_into->id;
 
-    my $trunk = $self->to_merge_into->current_commit->sha;
-    my $tip   = $self->current_commit->sha;
+    my $id = $self->first_commit_id;
+    if ($id) {
+        my $commit = Smokingit::Model::Commit->new;
+        $commit->load($id);
+        return $commit;
+    } elsif ($self->status eq "master") {
+        # No first commit for master branches
+        return undef;
+    } elsif (defined $id and $id == 0) {
+        # 0 means "Not found"
+        return undef;
+    }
+
+    my @trunks = map {"^".$_->current_commit->sha} @{$self->project->trunks};
+    my $tip    = $self->current_commit->sha;
 
     local $ENV{GIT_DIR} = $self->project->repository_path;
-    my @branch = map {chomp; $_} `git rev-list $tip ^$trunk --topo-order --max-count=$max`;
+    my @branch = map {chomp; $_} `git rev-list $tip @trunks --topo-order`;
     return unless @branch;
 
     my $commit = $self->project->sha( $branch[-1] );
-    return $commit->id ? $commit : undef;
+    if ($commit->id) {
+        $self->set_first_commit_id( $commit->id );
+        return $commit;
+    } else {
+        $self->set_first_commit_id( 0 );
+        return undef;
+    }
 }
 
 sub test_status {

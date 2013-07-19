@@ -109,16 +109,8 @@ sub trunk_or_relengs {
 sub planned_tests {
     my $self = shift;
     my $tests = Smokingit::Model::SmokeResultCollection->new;
-    $tests->limit(
-        column => "queue_status",
-        operator => "IS NOT",
-        value => "NULL"
-    );
+    $tests->limit_to_queued;
     $tests->limit( column => "project_id", value => $self->id );
-    $tests->order_by(
-        { column => "queued_at", order  => "asc" },
-        { column => "id",        order  => "asc" },
-    );
     $tests->prefetch( name => "commit" );
     return $tests;
 }
@@ -148,6 +140,10 @@ sub update_repository {
 
 sub sync {
     my $self = shift;
+    my @branches = @_;
+
+    my $filter;
+    $filter->{$_} = 1 for @branches;
 
     # Start a txn
     Jifty->handle->begin_transaction;
@@ -167,21 +163,22 @@ sub sync {
     local $ENV{GIT_DIR} = $self->repository_path;
 
     my %branches;
-    for ($self->repository->ref_names) {
-        next unless s{^refs/heads/}{};
-        $branches{$_}++;
+    for my $line (`git for-each-ref refs/heads/`) {
+        next unless $line =~ m{^([a-f0-9]+)\s+commit\s+refs/heads/(\S+)};
+        next if $filter and not $filter->{$2};
+        $branches{$2} = $1;
     }
 
     my @messages;
     my $branches = $self->branches;
     while (my $branch = $branches->next) {
+        next if $filter and not $filter->{$branch->name};
         if (not $branches{$branch->name}) {
             $branch->delete;
             push @messages, $branch->name." deleted";
             next;
         }
-        delete $branches{$branch->name};
-        my $new_ref = $self->repository->ref_sha1("refs/heads/" . $branch->name);
+        my $new_ref = delete $branches{$branch->name};
         my $old_ref = $branch->current_commit->sha;
         next if $new_ref eq $old_ref;
 
@@ -198,7 +195,6 @@ sub sync {
     for my $name (($has_master ? ("master") : ()), sort keys %branches) {
         warn "New branch $name\n";
         my $trunk = ($name eq "master");
-        my $sha = $self->repository->ref_sha1("refs/heads/$name");
         my $branch = Smokingit::Model::Branch->new;
         my $status = $trunk    ? "master"  :
                      $test_new ? "hacking" :
@@ -206,7 +202,7 @@ sub sync {
         my ($ok, $msg) = $branch->create(
             project_id    => $self->id,
             name          => $name,
-            sha           => $sha,
+            sha           => ($name eq "master" ? $has_master : $branches{$name}),
             status        => $status,
             long_status   => "",
             to_merge_into => undef,
@@ -216,7 +212,7 @@ sub sync {
         push @messages, $branch->name." created, status $status";
     }
 
-    my $tests = $self->schedule_tests;
+    my $tests = $self->schedule_tests(@branches);
     Jifty->handle->commit;
 
     push @messages, "$tests commits scheduled for testing" if $tests;
@@ -225,22 +221,30 @@ sub sync {
 
 sub schedule_tests {
     my $self = shift;
+    my @for = @_;
 
     local $ENV{GIT_DIR} = $self->repository_path;
 
     my $smokes = 0;
-    warn "Scheduling tests";
+    warn "Scheduling tests" . (@for ? " for @for" : "");
 
     # Go through branches, masters first
     my @branches;
-    my $branches = $self->branches;
-    $branches->limit( column => "status", value => "master" );
-    push @branches, @{$branches->items_array_ref};
-    $branches = $self->branches;
-    $branches->limit( column => "status", operator => "!=", value => "master", entry_aggregator => "AND" );
-    $branches->limit( column => "status", operator => "!=", value => "ignore", entry_aggregator => "AND" );
-    push @branches, @{$branches->items_array_ref};
-    warn "Branches: @{[map {$_->name} @branches]}\n";
+    if (@for) {
+        my $branches = $self->branches;
+        $branches->limit( column => "name", value => $_ )
+            for @for;
+        push @branches, @{ $branches->items_array_ref };
+    } else {
+        my $branches = $self->branches;
+        $branches->limit( column => "status", value => "master" );
+        push @branches, @{$branches->items_array_ref};
+        $branches = $self->branches;
+        $branches->limit( column => "status", operator => "!=", value => "master", entry_aggregator => "AND" );
+        $branches->limit( column => "status", operator => "!=", value => "ignore", entry_aggregator => "AND" );
+        push @branches, @{$branches->items_array_ref};
+        warn "Branches: @{[map {$_->name} @branches]}\n";
+    }
     return unless @branches;
 
     my @configs = @{$self->configurations->items_array_ref};

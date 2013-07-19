@@ -75,6 +75,14 @@ sub short_sha {
     return substr($self->sha,0,7);
 }
 
+sub is_merge {
+    my $self = shift;
+    my @parents = $self->parents;
+    return unless @parents > 1;
+    return $1 if $self->subject =~ /^Merge branch '(.*?)'/;
+    return 'Unknown branch';
+}
+
 sub run_smoke {
     my $self = shift;
     my $config = shift;
@@ -96,6 +104,15 @@ sub run_smoke {
         branch_name => $branch->name,
     );
     return $smoke->run_smoke;
+}
+
+sub smoke_results {
+    my $self = shift;
+    my $results = Smokingit::Model::SmokeResultCollection->new;
+    $results->limit( column => "commit_id", value => $self->id );
+    $results->limit( column => "project_id", value => $self->project->id );
+    $results->limit( column => "queue_status", operator => "IS", value => "NULL" );
+    return $results;
 }
 
 sub hash_results {
