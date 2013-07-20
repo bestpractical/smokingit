@@ -8,7 +8,6 @@ requires    'Plack::Middleware::CrossOrigin';
 requires    'IM::Engine';
 requires    'String::IRC';
 
-# requires IM::Engine from git://github.com/sartak/IM-Engine.git
 # requires Web::Hippie from git://github.com/alexmv/Web-Hippie.git
 
 WriteAll;
