@@ -39,6 +39,8 @@ template '/index.html' => page {
                     }
                 }
             };
+        } else {
+            outs_raw '&nbsp';
         }
     };
 
