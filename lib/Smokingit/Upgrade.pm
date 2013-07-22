@@ -41,6 +41,13 @@ since '0.0.8' => sub {
     require TAP::Parser;
     require TAP::Parser::Aggregator;
 
+    # We use low-level DBI calls to speed up the creation
+    my $table = Smokingit::Model::SmokeFileResultCollection->new( current_user => $super )->table;
+    my $sth = Jifty->handle->dbh->prepare(
+        "INSERT INTO $table (smoke_result_id, filename, elapsed, is_ok, tests_run, raw_tap) "
+        ."VALUES (?,?,?,?,?,?)"
+    );
+
     # Go through and inflate all of the old aggregators into test result
     # rows; do this in batches of 100, to save on memory.
     my $max = 0;
@@ -73,14 +80,13 @@ since '0.0.8' => sub {
                     $tap .= "$lines{$_}\n" for sort {$a <=> $b} keys %lines;
                 }
 
-                my $filetest = Smokingit::Model::SmokeFileResult->new( current_user => $super );
-                $filetest->create(
-                    smoke_result_id => $test->id,
-                    filename        => $filename,
-                    elapsed         => ($parser->end_time - $parser->start_time),
-                    is_ok           => !$parser->has_problems,
-                    tests_run       => $parser->tests_run,
-                    raw_tap         => $tap,
+                $sth->execute(
+                    $test->id,
+                    $filename,
+                    ($parser->end_time - $parser->start_time),
+                    ($parser->has_problems ? 'f' : 't'),
+                    $parser->tests_run,
+                    $tap,
                 );
             }
         }
