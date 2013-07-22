@@ -71,13 +71,13 @@ since '0.0.8' => sub {
                     $tap = "1..0 # skipped\n";
                 } else {
                     $tap = $parser->plan . "\n";
-                    my %lines;
-                    $lines{$_}   = "ok $_ # skip" for $parser->skipped;
-                    $lines{$_} ||= "ok $_ # TODO" for $parser->todo_passed;
-                    $lines{$_} ||= "not ok $_ # TODO" for $parser->todo;
-                    $lines{$_} ||= "ok $_" for $parser->actual_passed;
-                    $lines{$_} ||= "not ok $_" for $parser->actual_failed;
-                    $tap .= "$lines{$_}\n" for sort {$a <=> $b} keys %lines;
+                    my @lines;
+                    $lines[$_]   = "ok $_ # skip" for $parser->skipped;
+                    $lines[$_] ||= "ok $_ # TODO" for $parser->todo_passed;
+                    $lines[$_] ||= "not ok $_ # TODO" for $parser->todo;
+                    $lines[$_] ||= "ok $_" for $parser->actual_passed;
+                    $lines[$_] ||= "not ok $_" for $parser->actual_failed;
+                    $tap .= "$_\n" for grep {defined} @lines;
                 }
 
                 $sth->execute(
