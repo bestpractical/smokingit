@@ -10,19 +10,18 @@ template '/commit' => page {
 
     my $commit = get('commit');
 
-    ul {
-        my $configs = $b->project->configurations;
+    span {
+        class is "commitlist";
+        my $configs = $commit->project->configurations;
         while (my $config = $configs->next) {
-            li {
-                my $smoke = Smokingit::Model::SmokeResult->new;
-                $smoke->load_by_cols(
-                    project_id       => $commit->project->id,
-                    configuration_id => $config->id,
-                    commit_id        => $commit->id,
-                );
-                next unless $smoke->id;
-                Smokingit::View::test_result( $smoke );
-            }
+            my $smoke = Smokingit::Model::SmokeResult->new;
+            $smoke->load_by_cols(
+                project_id       => $commit->project->id,
+                configuration_id => $config->id,
+                commit_id        => $commit->id,
+            );
+            next unless $smoke->id;
+            Smokingit::View::test_result( $smoke );
         }
     }
 };
