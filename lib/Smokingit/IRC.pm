@@ -69,6 +69,7 @@ sub incoming {
     }
 
     my $msg = $incoming->message;
+    $msg =~ s/\s*$//;
     my $nick = $self->interface->irc->nick;
     return if $incoming->isa("IM::Engine::Incoming::IRC::Channel")
         and not $msg =~ s/^\s*$nick(?:\s*[:,])?\s*(?:please\s+)?//i;
