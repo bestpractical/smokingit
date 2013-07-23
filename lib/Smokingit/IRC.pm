@@ -125,7 +125,7 @@ sub do_status {
 sub lookup_commitish {
     my $self = shift;
     my ($incoming, $what) = @_;
-    if ($what =~ /^\s*([a-fA-F0-9]{5,})\s*$/) {
+    if ($what =~ s/^\s*([a-fA-F0-9]{5,})\s*$/lc $1/e) {
         my $commits = Smokingit::Model::CommitCollection->new;
         $commits->limit( column => "sha", operator => "like", value => "$what%" );
         my @matches = @{ $commits->items_array_ref };
