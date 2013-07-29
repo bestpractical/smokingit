@@ -163,9 +163,10 @@ sub lookup_commitish {
                 $incoming => "No branch $branch found",
             );
         } elsif (@matches > 1) {
+            @matches = map {$_->project->name} @matches;
             return error_reply(
                 $incoming => "Found $branch in ".
-                    join(", ", map {$_->project->name} @matches).
+                    join(", ", @matches).
                     ".  Try, $matches[0]:$branch"
             );
         }
