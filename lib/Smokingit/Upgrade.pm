@@ -34,4 +34,63 @@ since '0.0.4' => sub {
     }
 };
 
+since '0.0.8' => sub {
+    # Time elapsed became a float
+    Jifty->handle->simple_query("ALTER TABLE smoke_results ALTER COLUMN elapsed TYPE float");
+
+    require TAP::Parser;
+    require TAP::Parser::Aggregator;
+
+    # We use low-level DBI calls to speed up the creation
+    my $table = Smokingit::Model::SmokeFileResultCollection->new( current_user => $super )->table;
+    my $sth = Jifty->handle->dbh->prepare(
+        "INSERT INTO $table (smoke_result_id, filename, elapsed, is_ok, tests_run, raw_tap) "
+        ."VALUES (?,?,?,?,?,?)"
+    );
+
+    # Go through and inflate all of the old aggregators into test result
+    # rows; do this in batches of 100, to save on memory.
+    my $max = 0;
+    do {
+        my $tests = Smokingit::Model::SmokeResultCollection->new( current_user => $super );
+        $tests->limit( column => "id", operator => ">", value => $max );
+        $tests->order_by( { column => "id", order  => "asc" } );
+        $tests->rows_per_page(100);
+        $tests->columns( "id", "aggregator" );
+        $max = 0;
+        while (my $test = $tests->next) {
+            $max = $test->id;
+            warn "$max\n";
+            my $aggregator = $test->_value('aggregator');
+            next unless $aggregator;
+            for my $filename ($aggregator->descriptions) {
+                my ($parser) = $aggregator->parsers($filename);
+
+                my $tap = "";
+                if ($parser->skip_all) {
+                    $tap = "1..0 # skipped\n";
+                } else {
+                    $tap = $parser->plan . "\n";
+                    my @lines;
+                    $lines[$_]   = "ok $_ # skip" for $parser->skipped;
+                    $lines[$_] ||= "ok $_ # TODO" for $parser->todo_passed;
+                    $lines[$_] ||= "not ok $_ # TODO" for $parser->todo;
+                    $lines[$_] ||= "ok $_" for $parser->actual_passed;
+                    $lines[$_] ||= "not ok $_" for $parser->actual_failed;
+                    $tap .= "$_\n" for grep {defined} @lines;
+                }
+
+                $sth->execute(
+                    $test->id,
+                    $filename,
+                    ($parser->end_time - $parser->start_time),
+                    ($parser->has_problems ? 'f' : 't'),
+                    $parser->tests_run,
+                    $tap,
+                );
+            }
+        }
+    } while ($max);
+};
+
 1;
