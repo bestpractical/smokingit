@@ -152,6 +152,7 @@ sub post_result {
     my %result = %{ $arg };
     delete $result{start};
     delete $result{end};
+    delete $result{test};
 
     my $status = Smokingit::Status->new( $self );
 
