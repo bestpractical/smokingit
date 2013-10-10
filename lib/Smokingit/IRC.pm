@@ -113,6 +113,8 @@ sub do_status {
     my $what     = $self->lookup_commitish($incoming, @_);
     if ($what->isa("Smokingit::Model::Commit")) {
         my $msg = $what->short_sha . " is " . $what->status;
+        $msg = $what->short_sha . " is " . $self->describe_fail($what)
+            if $what->status eq "failing";
 
         $msg .= "; " . $self->queue_status($what)
             if $what->status eq "queued";
