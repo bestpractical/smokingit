@@ -32,7 +32,7 @@ framework:
     DataDir: var/mason
     Globals: []
     PSGIStatic: 1
-    Port: 8888
+    Port: 80
     StaticRoot: share/web/static
     TemplateRoot: share/web/templates
 application:
