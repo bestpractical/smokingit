@@ -37,9 +37,22 @@ Jifty->rpc->register(
 
 # Background task, from worker
 Jifty->rpc->register(
+    name => "post_file_results",
+    run  => sub {
+        my $data = shift;
+        return unless keys %{$data};
+        my $smoke = Smokingit::Model::SmokeResult->new(
+            current_user => Smokingit::CurrentUser->superuser,
+        );
+        my ($ok, $msg) = $smoke->post_file_result($data);
+        return $ok;
+    },
+);
+Jifty->rpc->register(
     name => "post_results",
     run  => sub {
         my $data = shift;
+        return unless keys %{$data};
         my $smoke = Smokingit::Model::SmokeResult->new(
             current_user => Smokingit::CurrentUser->superuser,
         );

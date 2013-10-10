@@ -95,6 +95,15 @@ sub run_smoke {
               $self->commit->short_sha
           )."\n";
 
+    # Delete all previous test file results
+    my $testfiles = Smokingit::Model::SmokeFileResultCollection->new(
+        current_user => Smokingit::CurrentUser->superuser,
+    );
+    $testfiles->limit( column => "smoke_result_id", value => $self->id );
+    while (my $fileresult = $testfiles->next) {
+        $fileresult->delete;
+    }
+
     my $status = Smokingit::Status->new( $self );
     Jifty->rpc->call(
         name => "run_tests",
@@ -144,8 +153,6 @@ sub post_result {
     delete $result{start};
     delete $result{end};
 
-    my %tests = %{ delete $result{test} };
-
     my $status = Smokingit::Status->new( $self );
 
     # Find the smoke
@@ -172,29 +179,6 @@ sub post_result {
     # Mark as no longer smoking
     $self->set_queue_status(undef);
 
-    # Delete all previous test file results
-    my $testfiles = Smokingit::Model::SmokeFileResultCollection->new(
-        current_user => Smokingit::CurrentUser->superuser,
-    );
-    $testfiles->limit( column => "smoke_result_id", value => $self->id );
-    while (my $fileresult = $testfiles->next) {
-        $fileresult->delete;
-    }
-
-    # Create rows for all test files
-    for my $filename (sort keys %tests) {
-        my $fileresult = Smokingit::Model::SmokeFileResult->new(
-            current_user => Smokingit::CurrentUser->superuser,
-        );
-        my ($ok, $msg) = $fileresult->create(
-            %{$tests{$filename}},
-            filename => $filename,
-            smoke_result_id => $self->id,
-        );
-        warn "Failed to create entry for $filename: $msg"
-            unless $ok;
-    }
-
     # And commit all of that
     Jifty->handle->commit;
 
@@ -207,6 +191,45 @@ sub post_result {
              ." on ". $self->branch_name
              .": ".($self->is_ok ? "OK" : "NOT OK"));
 }
+
+sub post_file_result {
+    my $self = shift;
+    my ($arg) = @_;
+
+    my %result = %{ $arg };
+
+    # Find the smoke
+    Jifty->handle->begin_transaction;
+    my $smokeid = $result{smoke_result_id};
+    $self->load( $smokeid );
+    if (not $self->id) {
+        Jifty->handle->rollback;
+        return (0, "Invalid smoke ID: $smokeid");
+    } elsif (not $self->queue_status) {
+        Jifty->handle->rollback;
+        return (0, "Smoke report on $smokeid which wasn't being smoked? (last report at @{[$self->submitted_at]})");
+    }
+
+    my $fileresult = Smokingit::Model::SmokeFileResult->new(
+        current_user => Smokingit::CurrentUser->superuser,
+    );
+    $fileresult->load_by_cols(
+        smoke_result_id => $self->id,
+        filename        => $result{filename},
+    );
+    $fileresult->delete if $fileresult->id;
+
+
+    my ($ok, $msg) = $fileresult->create( %result );
+    warn "Failed to create entry for $result{filename}: $msg"
+      unless $ok;
+
+    # And commit all of that
+    Jifty->handle->commit;
+
+    return ($fileresult->id, "$result{filename} committed");
+}
+
 
 
 sub current_user_can {
