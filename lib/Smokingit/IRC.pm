@@ -119,6 +119,8 @@ sub do_status {
         $msg .= "; " . $self->queue_status($what)
             if $what->status eq "queued";
 
+        $msg .= " - " .  Jifty->web->url(path => "/test/".$what->short_sha);
+
         return $incoming->reply( $msg );
     } else {
         return $what;
