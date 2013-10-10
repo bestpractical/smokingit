@@ -272,6 +272,71 @@ sub test_progress {
     warn "$@" if $@;
 }
 
+sub describe_fail {
+    my $self = shift;
+
+    my ($commit) = @_;
+
+    my $fails = Smokingit::Model::SmokeFileResultCollection->new;
+    my $results = $fails->join(
+        alias1  => "main",
+        column1 => "smoke_result_id",
+        table2  => "smoke_results",
+        column2 => "id",
+        is_distinct => 1,
+    );
+    $fails->limit(
+        alias => $results,
+        column => "commit_id",
+        value  => $commit->id,
+    );
+    $fails->limit(
+        column => "is_ok",
+        value  => 0,
+    );
+    $fails->prefetch( name => "smoke_result" );
+
+    my %testnames;
+    my %configs;
+    while (my $fail = $fails->next) {
+        my $config = $fail->smoke_result->configuration->name;
+        $testnames{$fail->filename}{$config} = 1;
+        $configs{$config}{$fail->filename} = 1;
+    }
+
+    my $enum = sub {
+        my ($sep, @lst) = @_;
+        $lst[-1] = "and $lst[-1]" if @lst > 1;
+        return join("$sep ", @lst);
+    };
+
+    my $config_count = $commit->project->configurations->count;
+    # Are all of the fails across all configurations?
+    if (scalar values %testnames == grep {keys(%{$_}) == $config_count} values %testnames) {
+        return "failing ".$enum->(",", sort keys %testnames);
+    }
+
+    # Are all of the fails in just one configuration?
+    if (scalar keys %configs == 1) {
+        return "failing @{[keys %configs]} tests: ".$enum->(",", sort keys %testnames);
+    }
+
+    # Something else; pull out all of the ones which apply to all
+    # configs first, then go through the remaining ones
+    my @all = sort grep {keys(%{$testnames{$_}}) == $config_count} keys %testnames;
+    for my $c (keys %configs) {
+        delete $configs{$c}{$_} for @all;
+    }
+    my @ret;
+    push @ret, $enum->(",", @all)." on all" if @all;
+
+    for my $config (sort grep {keys %{$configs{$_}}} keys %configs) {
+        push @ret, $enum->(",", sort keys %{delete $configs{$config}})." on $config";
+    }
+
+    return "failing " . $enum->(";", @ret);
+}
+
 sub do_analyze {
     my $self = shift;
     my ($smoke) = @_;
@@ -301,6 +366,8 @@ sub do_analyze {
     my $author = $commit->author;
     $author = $1 if $author =~ /<(.*?)@/;
 
+    my $url = Jifty->web->url(path => "/test/".$commit->short_sha);
+
     # If this is the first commit on the branch, _or_ we haven't tested
     # some configuration of each parent of this commit, then this is
     # first news we have of the branch.
@@ -312,7 +379,7 @@ sub do_analyze {
               String::IRC->new("passes tests")->green;
         } else {
             return "$author pushed a new branch $branchname which is " .
-              String::IRC->new("failing tests")->red;
+              String::IRC->new($self->describe_fail($commit))->red . " - $url";
         }
     } elsif ($commit->is_merge){
         my $mergename = $commit->is_merge;
@@ -330,30 +397,30 @@ sub do_analyze {
 
         if ($trunk_good and $branch_good) {
             return "$author merged $mergename into $branchname, which is " .
-                String::IRC->new("failing tests")->red .
-                ", although both parents were passing";
+                String::IRC->new($self->describe_fail($commit))->red .
+                ", although both parents were passing - $url";
         } elsif ($trunk_good and not $branch_good) {
             return "$author merged $mergename (".
-              String::IRC->new("failing tests")->red.
+              String::IRC->new($self->describe_fail($commit))->red.
               ") into $branchname, which is now ".
-              String::IRC->new("failing tests")->red;
+              String::IRC->new($self->describe_fail($commit))->red . " - $url";
         } elsif (not $trunk_good and not $branch_good) {
             return "$author merged $mergename (".
-              String::IRC->new("failing tests")->red.
+              String::IRC->new($self->describe_fail($commit))->red.
               ") into $branchname, which is still ".
-              String::IRC->new("failing tests")->red;
+              String::IRC->new($self->describe_fail($commit))->red . " - $url";
         } else {
             return "$author merged $mergename".
               " into $branchname, which is still ".
-              String::IRC->new("failing tests")->red;
+              String::IRC->new($self->describe_fail($commit))->red . " - $url";
         }
     } elsif ($commit->status ne "passing") {
         # A new commit on an existing branch, which fails tests.  Let's
         # check if this is better or worse than the previous commit.
         if (@tested_parents == grep {$_->status eq "passing"} @tested_parents) {
             return "$branchname by $author began ".
-                String::IRC->new("failing tests")->red .
-                " as of ".$commit->short_sha;
+                String::IRC->new($self->describe_fail($commit))->red .
+                " as of ".$commit->short_sha. " - $url";
         } else {
             # Was failing, still failing?  Let's not spam about it
             return;
