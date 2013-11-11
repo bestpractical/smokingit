@@ -430,7 +430,7 @@ sub do_analyze {
     } elsif (grep {$_->status ne "passing"} @tested_parents) {
         # A new commit on an existing branch, which passes tests but
         # whose parents didn't!
-        return "$branchname by $author ".
+        return "$branchname by $author now ".
             String::IRC->new("passes tests")->green .
             " as of ".$commit->short_sha;
     } else {
