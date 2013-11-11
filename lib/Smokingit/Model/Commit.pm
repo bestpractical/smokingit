@@ -229,6 +229,28 @@ sub long_status {
     return $long{$self->status};
 }
 
+sub is_fully_smoked {
+    my $self = shift;
+
+    my $smoked = Smokingit::Model::SmokeResultCollection->new;
+    $smoked->limit( column => "commit_id", value => $self->id );
+    $smoked->limit( column => "project_id", value => $self->project->id );
+    $smoked->limit(
+        column => "queue_status",
+        operator => "IS",
+        value => "NULL"
+    );
+
+    my $configs = $self->project->configurations;
+
+    my %need;
+    $need{$_->id} = 1 for @{ $configs->items_array_ref };
+    delete $need{$_->configuration->id} for @{ $smoked->items_array_ref };
+
+    return 0 if keys %need;
+    return 1;
+}
+
 sub parents {
     my $self = shift;
     return map {$self->project->sha($_)} split ' ', $self->_value('parents');

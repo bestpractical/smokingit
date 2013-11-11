@@ -73,15 +73,7 @@ sub publish {
         status     => $long,
     } );
 
-    my $smoked = Smokingit::Model::SmokeResultCollection->new;
-    $smoked->limit( column => "commit_id", value => $commit->id );
-    $smoked->limit( column => "project_id", value => $smoke->project->id );
-    $smoked->limit(
-        column => "queue_status",
-        operator => "IS",
-        value => "NULL"
-    );
-    return unless $smoked->count == $smoke->project->configurations->count;
+    return unless $commit->is_fully_smoked;
     Jifty->bus->topic("commit_result")->publish( {
         type       => "commit_result",
         sha        => $commit->sha,

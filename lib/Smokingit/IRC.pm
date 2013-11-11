@@ -348,12 +348,8 @@ sub do_analyze {
     my $commit = $smoke->commit;
     my $project = $smoke->project;
 
-    warn "Got test result for ".$commit->short_sha;
-
     # First off, have we tested all configurations?
-    return unless $commit->smoke_results->count == $project->configurations->count;
-
-    warn "Have tested all configs";
+    return unless $commit->is_fully_smoked;
 
     # See if we can find the branch for this commit
     my $branch = Smokingit::Model::Branch->new;
