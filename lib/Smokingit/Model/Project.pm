@@ -247,7 +247,7 @@ sub schedule_tests {
     }
     return unless @branches;
 
-    my @configs = @{$self->configurations->items_array_ref};
+    my @configs = grep {$_->auto} @{$self->configurations->items_array_ref};
 
     for my $branch (@branches) {
         # If there's nothing else happening, ensure that the tip is tested

@@ -11,7 +11,7 @@ framework:
     Host: localhost
     Password: ''
     User: postgres
-    Version: 0.0.8
+    Version: 0.0.9
   DevelMode: 1
   LogLevel: INFO
   Mailer: Sendmail

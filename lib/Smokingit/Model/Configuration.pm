@@ -33,6 +33,12 @@ use Smokingit::Record schema {
         is boolean,
         label is 'Parallel testing?',
         default is 't';
+
+    column auto =>
+        is boolean,
+        label is 'Automatically test?',
+        default is 't',
+        since '0.0.9';
 };
 
 sub create {

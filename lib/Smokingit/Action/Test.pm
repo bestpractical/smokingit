@@ -139,7 +139,11 @@ sub take_action {
         $branch->load_by_cols( name => $branchname, project_id => $commit->project->id);
 
         my $configs = $commit->project->configurations;
-        $configs->limit( column => "id", value => $config ) if $config;
+        if ($config) {
+            $configs->limit( column => "id", value => $config );
+        } else {
+            $configs->limit( column => "auto", value => 1 );
+        }
 
         while (my $config = $configs->next) {
             $commit->run_smoke( $config, $branch );

@@ -242,6 +242,7 @@ sub is_fully_smoked {
     );
 
     my $configs = $self->project->configurations;
+    $configs->limit( column => "auto", value => 1 );
 
     my %need;
     $need{$_->id} = 1 for @{ $configs->items_array_ref };

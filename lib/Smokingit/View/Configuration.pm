@@ -24,6 +24,7 @@ template '/config' => page {
         render_param( $update => "env" );
         render_param( $update => "test_glob" );
         render_param( $update => "parallel" );
+        render_param( $update => "auto" );
         form_submit( label => _("Update"), url => "/project/". $c->project->name . "/");
     };
 };
@@ -49,6 +50,7 @@ template '/new-configuration' => page {
         render_param( $create => "env" );
         render_param( $create => "test_glob" );
         render_param( $create => "parallel" );
+        render_param( $create => "auto" );
         form_submit( label => _("Create"), url => "/project/" . get('project')->name . "/" );
     };
 };

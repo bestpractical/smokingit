@@ -314,8 +314,10 @@ sub describe_fail {
         return join("$sep ", @lst);
     };
 
-    my $config_count = $commit->project->configurations->count;
     # Are all of the fails across all configurations?
+    my %tested_configs;
+    $tested_configs{$_->configuration->id}++ for @{ $commit->smoke_results->items_array_ref };
+    my $config_count = keys %tested_configs;
     if (scalar values %testnames == grep {keys(%{$_}) == $config_count} values %testnames) {
         return "failing ".$enum->(",", sort keys %testnames);
     }
