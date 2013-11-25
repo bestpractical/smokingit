@@ -172,6 +172,9 @@ sub post_result {
     # necessary as for queued_at (above), but is useful nonetheless.
     $self->__set( column => 'submitted_at', value => 'now()', is_sql_function => 1 );
 
+    # Ensure we clear out 'error'
+    $result{error} = undef unless exists $result{error};
+
     # Update with the new data
     for my $key (keys %result) {
         my $method = "set_$key";
