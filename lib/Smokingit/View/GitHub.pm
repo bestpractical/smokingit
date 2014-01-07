@@ -5,12 +5,13 @@ package Smokingit::View::GitHub;
 use Jifty::View::Declare -base;
 
 use Jifty::JSON qw/decode_json/;
+use Encode qw/encode/;
 
 template '/github' => sub {
     my $ret = eval {
         die "Wrong method\n" unless Jifty->web->request->method eq "POST";
         die "No payload\n"   unless get('payload');
-        my $json = eval { decode_json(get('payload')) }
+        my $json = eval { decode_json(encode('utf8', get('payload'))) }
             or die "Bad JSON: $@\n" . get('payload');
 
         my $name = $json->{repository}{name}
