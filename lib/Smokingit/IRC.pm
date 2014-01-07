@@ -351,6 +351,32 @@ sub do_analyze {
     my $commit = $smoke->commit;
     my $project = $smoke->project;
 
+    my $author = $commit->author;
+    $author = $1 if $author =~ /<(.*?)@/;
+
+    # If this is an on-demand configuration, report it
+    if (not $smoke->configuration->auto) {
+        my ($status) = $commit->status($smoke);
+        if ($status eq "passing") {
+            $status = String::IRC->new("passes tests")->green;
+        } else {
+            my $fails = Smokingit::Model::SmokeFileResultCollection->new;
+            $fails->limit(
+                column => "smoke_result_id",
+                value  => $smoke->id,
+            );
+            $fails->limit(
+                column => "is_ok",
+                value  => 0,
+            );
+            $status = "is failing " . enum(", ", sort map {$_->filename} @{$fails->items_array_ref});
+            $status = String::IRC->new($status)->red . " - $url");
+        }
+        my $url = Jifty->web->url(path => "/test/".$commit->short_sha);
+        return $smoke->configuration->name " of ".$commit->short_sha . " on ".$smoke->branch_name
+            ." $status";
+    }
+
     # First off, have we tested all configurations?
     return unless $commit->is_fully_smoked;
 
@@ -365,9 +391,6 @@ sub do_analyze {
 
     # Make sure the branch actually still contains the commit
     return unless $branch->contains($commit);
-
-    my $author = $commit->author;
-    $author = $1 if $author =~ /<(.*?)@/;
 
     my $url = Jifty->web->url(path => "/test/".$commit->short_sha);
 
