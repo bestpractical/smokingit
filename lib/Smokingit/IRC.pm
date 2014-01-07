@@ -74,8 +74,8 @@ sub incoming {
     return if $incoming->isa("IM::Engine::Incoming::IRC::Channel")
         and not $msg =~ s/^\s*$nick(?:\s*[:,])?\s*(?:please\s+)?//i;
 
-    if ($msg =~ /^retest\s+(.*)/) {
-        return $self->do_retest($incoming, $1);
+    if ($msg =~ /^(re)?test\s+(.*)/) {
+        return $self->do_test($incoming, $1);
     } elsif ($msg =~ /^status\s+(?:of\s+)?(.*)/) {
         return $self->do_status($incoming, $1);
     } elsif ($msg =~ /^(?:re)?sync(?:\s+(.*))?/) {
@@ -87,7 +87,7 @@ sub incoming {
     }
 }
 
-sub do_retest {
+sub do_test {
     my $self = shift;
     my ($incoming, $what) = @_;
     my $action = Smokingit::Action::Test->new(
