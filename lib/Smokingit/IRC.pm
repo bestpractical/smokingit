@@ -373,7 +373,7 @@ sub do_analyze {
             $status = String::IRC->new($status)->red . " - $url");
         }
         my $url = Jifty->web->url(path => "/test/".$commit->short_sha);
-        return $smoke->configuration->name " of ".$commit->short_sha . " on ".$smoke->branch_name
+        return $smoke->configuration->name . " of ".$commit->short_sha . " on ".$smoke->branch_name
             ." $status";
     }
 
