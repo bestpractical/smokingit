@@ -74,7 +74,7 @@ sub incoming {
     return if $incoming->isa("IM::Engine::Incoming::IRC::Channel")
         and not $msg =~ s/^\s*$nick(?:\s*[:,])?\s*(?:please\s+)?//i;
 
-    if ($msg =~ /^(re)?test\s+(.*)/) {
+    if ($msg =~ /^(?:re)?test\s+(.*)/) {
         return $self->do_test($incoming, $1);
     } elsif ($msg =~ /^status\s+(?:of\s+)?(.*)/) {
         return $self->do_status($incoming, $1);
