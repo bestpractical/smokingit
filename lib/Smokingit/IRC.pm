@@ -276,6 +276,13 @@ sub test_progress {
     warn "$@" if $@;
 }
 
+
+sub enum {
+    my ($sep, @lst) = @_;
+    $lst[-1] = "and $lst[-1]" if @lst > 1;
+    return join("$sep ", @lst);
+}
+
 sub describe_fail {
     my $self = shift;
 
@@ -308,23 +315,17 @@ sub describe_fail {
         $configs{$config}{$fail->filename} = 1;
     }
 
-    my $enum = sub {
-        my ($sep, @lst) = @_;
-        $lst[-1] = "and $lst[-1]" if @lst > 1;
-        return join("$sep ", @lst);
-    };
-
     # Are all of the fails across all configurations?
     my %tested_configs;
     $tested_configs{$_->configuration->id}++ for @{ $commit->smoke_results->items_array_ref };
     my $config_count = keys %tested_configs;
     if (scalar values %testnames == grep {keys(%{$_}) == $config_count} values %testnames) {
-        return "failing ".$enum->(",", sort keys %testnames);
+        return "failing ".enum(",", sort keys %testnames);
     }
 
     # Are all of the fails in just one configuration?
     if (scalar keys %configs == 1) {
-        return "failing @{[keys %configs]} tests: ".$enum->(",", sort keys %testnames);
+        return "failing @{[keys %configs]} tests: ".enum(",", sort keys %testnames);
     }
 
     # Something else; pull out all of the ones which apply to all
@@ -334,13 +335,13 @@ sub describe_fail {
         delete $configs{$c}{$_} for @all;
     }
     my @ret;
-    push @ret, $enum->(",", @all)." on all" if @all;
+    push @ret, enum(",", @all)." on all" if @all;
 
     for my $config (sort grep {keys %{$configs{$_}}} keys %configs) {
-        push @ret, $enum->(",", sort keys %{delete $configs{$config}})." on $config";
+        push @ret, enum(",", sort keys %{delete $configs{$config}})." on $config";
     }
 
-    return "failing " . $enum->(";", @ret);
+    return "failing " . enum(";", @ret);
 }
 
 sub do_analyze {
