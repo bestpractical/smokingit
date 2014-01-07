@@ -370,9 +370,9 @@ sub do_analyze {
                 value  => 0,
             );
             $status = "is failing " . enum(", ", sort map {$_->filename} @{$fails->items_array_ref});
-            $status = String::IRC->new($status)->red . " - $url");
+            my $url = Jifty->web->url(path => "/test/".$commit->short_sha);
+            $status = String::IRC->new($status)->red . " - $url";
         }
-        my $url = Jifty->web->url(path => "/test/".$commit->short_sha);
         return $smoke->configuration->name . " of ".$commit->short_sha . " on ".$smoke->branch_name
             ." $status";
     }
