@@ -121,6 +121,7 @@ sub run_smoke {
         on_sent => sub {
             my $ok = shift;
             $self->as_superuser->set_queue_status($ok ? "queued" : "broken");
+            $self->as_superuser->set_error(undef);
             # Use SQL so we get millisecond accuracy in the DB.  Otherwise rows
             # inserted during the same second may not sort the same as they show
             # up in the worker's queue.
