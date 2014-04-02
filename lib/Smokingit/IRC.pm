@@ -317,7 +317,15 @@ sub describe_fail {
 
     # Are all of the fails across all configurations?
     my %tested_configs;
-    $tested_configs{$_->configuration->id}++ for @{ $commit->smoke_results->items_array_ref };
+    for my $result (@{ $commit->smoke_results->items_array_ref }) {
+        my $config = $result->configuration;
+        $tested_configs{$config->id}++;
+
+        my $short = $result->short_error;
+        next unless $short;
+        $short =~ s/^Configuration failed/configuration/;
+        $testnames{$short}{$config->name} = 1;
+    }
     my $config_count = keys %tested_configs;
     if (scalar values %testnames == grep {keys(%{$_}) == $config_count} values %testnames) {
         return "failing ".enum(",", sort keys %testnames);
