@@ -76,6 +76,29 @@ sub short_error {
     return $msg;
 }
 
+sub previous_tested {
+    my $self = shift;
+
+    # Find something to compare this to; look back (up to 50 first
+    # parents) for a test with this config which passed.
+    my $commit = $self->commit;
+    my $config = $self->configuration;
+    my $project = $self->project;
+
+    my $result = Smokingit::Model::SmokeResult->new;
+    for (1..50) {
+        ($commit) = $commit->parents;
+        my ($status) = $commit->status($config);
+        $result->load_by_cols(
+            project_id       => $project->id,
+            configuration_id => $config->id,
+            commit_id        => $commit->id,
+        );
+        return $result if $result->id and $result->is_ok;
+    }
+    return undef;
+}
+
 sub run_smoke {
     my $self = shift;
 
@@ -104,6 +127,20 @@ sub run_smoke {
         $fileresult->delete;
     }
 
+    # Determine the correct order
+    my $previous = $self->previous_tested;
+    if ($previous) {
+        my $testfiles = Smokingit::Model::SmokeFileResultCollection->new;
+        $testfiles->limit( column => "smoke_result_id", value => $previous->id );
+        $testfiles->order_by( { column => 'elapsed', order => 'DESC' });
+        $testfiles->columns( "id", "filename", "elapsed" );
+
+        $previous = {};
+        while (my $tf = $testfiles->next) {
+            $previous->{$tf->filename} = $tf->elapsed;
+        }
+    }
+
     my $status = Smokingit::Status->new( $self );
     Jifty->rpc->call(
         name => "run_tests",
@@ -117,6 +154,7 @@ sub run_smoke {
             env            => $self->configuration->env,
             parallel       => ($self->configuration->parallel ? 1 : 0),
             test_glob      => $self->configuration->test_glob,
+            previous       => $previous,
         },
         on_sent => sub {
             my $ok = shift;
