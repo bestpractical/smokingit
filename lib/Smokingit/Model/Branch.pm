@@ -8,7 +8,8 @@ use Scalar::Util qw/blessed/;
 use Smokingit::Record schema {
     column project_id =>
         references Smokingit::Model::Project,
-        is protected;
+        is protected,
+        serialized as {name => "project"};
 
     column name =>
         type is 'text',
@@ -17,15 +18,18 @@ use Smokingit::Record schema {
 
     column first_commit_id =>
         references Smokingit::Model::Commit,
-        is protected;
+        is protected,
+        serialized as {name => "first_commit"};
 
     column current_commit_id =>
         references Smokingit::Model::Commit,
-        is protected;
+        is protected,
+        serialized as {name => "current_commit"};
 
     column tested_commit_id =>
         references Smokingit::Model::Commit,
-        is protected;
+        is protected,
+        serialized as {name => "tested_commit"};
 
     column last_status_update =>
         references Smokingit::Model::Commit,
@@ -56,7 +60,8 @@ use Smokingit::Record schema {
         type is 'text';
 
     column to_merge_into =>
-        references Smokingit::Model::Branch;
+        references Smokingit::Model::Branch,
+        serialized as {name => "to_merge_into"};
 
     column current_actor =>
         type is 'text',
@@ -331,6 +336,14 @@ sub current_user_can {
     return 1 if $right eq 'update' and $self->current_user->id;
 
     return $self->SUPER::current_user_can($right => %args);
+}
+
+sub jifty_serialize_format {
+    my $self = shift;
+    my $data = $self->SUPER::jifty_serialize_format(@_);
+    $data->{status}      = $self->current_commit->status;
+    $data->{long_status} = $self->current_commit->long_status;
+    return $data;
 }
 
 1;

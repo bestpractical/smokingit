@@ -6,7 +6,8 @@ use Jifty::DBI::Schema;
 
 use Smokingit::Record schema {
     column project_id =>
-        references Smokingit::Model::Project;
+        references Smokingit::Model::Project,
+        serialized as {name => "project"};
 
     column sha =>
         type is 'text',
@@ -290,6 +291,10 @@ sub jifty_serialize_format {
     $data->{status}      = $self->status;
     $data->{long_status} = $self->long_status;
     return $data;
+}
+
+sub default_serialized_as_columns {
+    return ('id', 'sha', 'subject');
 }
 
 1;
