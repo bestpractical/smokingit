@@ -202,7 +202,7 @@ sub status {
             $results{$status}++;
         }
         my $status = "untested";
-        for my $st (qw/broken errors failing todo passing parsefail testing queued/) {
+        for my $st (qw/broken errors failing parsefail todo passing testing queued/) {
             next unless $results{$st};
             $status = $st;
             last;
