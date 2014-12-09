@@ -18,6 +18,11 @@ has 'slack_properties' => (
     isa     => 'HashRef',
     default => sub { {} },
 );
+has 'channels' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    default => sub { {} },
+);
 
 has 'connection' => (
     is      => 'rw',
@@ -69,6 +74,10 @@ sub run {
 
             $self->name( $data->{self}{name} );
             $self->slack_properties( $data->{self} );
+
+            my %channels;
+            $channels{$_->{id}} = $_ for @{ $data->{channels} };
+            $self->channels( \%channels );
 
             my $client = AnyEvent::WebSocket::Client->new;
             Jifty->log->info( "Connecting to ".$data->{url} );
@@ -384,6 +393,12 @@ sub test_progress {
         my $message = $self->do_analyze($smoke);
         return unless $message;
 
+        my $channel = Jifty->config->app('slack')->{channel};
+        unless ($channel =~ /^C/) {
+            ($channel) = map {$_->{id}}
+                grep {$_->{name} eq $channel}
+                values %{ $self->channels };
+        }
         $self->send_to( Jifty->config->app('slack')->{channel} => $message );
     };
     warn "$@" if $@;
