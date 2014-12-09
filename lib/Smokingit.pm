@@ -4,6 +4,8 @@ use warnings;
 package Smokingit;
 use Cache::Memcached;
 
+our $VERSION = '1.00';
+
 our( $MEMCACHED );
 
 sub start {

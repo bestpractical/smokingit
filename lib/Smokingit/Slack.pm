@@ -1,147 +1,259 @@
 use strict;
 use warnings;
 
-package Smokingit::IRC;
-use String::IRC;
+package Smokingit::Slack;
+use AnyEvent::WebSocket::Client;
+use AnyEvent::HTTP;
+use LWP::UserAgent;
+use JSON;
 
 use Moose;
-extends 'IM::Engine';
 
-has '+interface_args' => (
-    required => 0,
-    default  => sub {
-        my %config = %{ Jifty->config->app('irc') || {} };
-        return {
-            protocol => 'IRC',
-            credentials => {
-                server   => $config{host},
-                port     => $config{port},
-                nick     => $config{nick} || 'anna',
-                channels => [$config{channel}],
-            },
-        };
-    },
+has 'name' => (
+    is      => 'rw',
+    isa     => 'Str',
+);
+has 'slack_properties' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    default => sub { {} },
 );
 
-sub BUILD {
+has 'connection' => (
+    is      => 'rw',
+    isa     => 'Maybe[AnyEvent::WebSocket::Connection]',
+);
+
+has 'next_id' => (
+    is      => 'rw',
+    isa     => 'Int',
+    default => 1,
+);
+sub get_id {
+    my $self = shift;
+    my $id = $self->next_id;
+    $self->next_id( $id + 1 );
+    return $id;
+}
+has 'pending_reply' => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    default => sub { {} },
+);
+
+has 'ping'      => ( is => 'rw', );
+has 'reconnect' => ( is => 'rw', );
+
+
+sub run {
     my $self = shift;
 
-    $self->interface->incoming_callback(
-        sub { $self->incoming(@_) },
-    );
+    my $token = Jifty->config->app('slack')->{token};
+    $self->reconnect(undef);
 
-    $self->interface->irc->reg_cb(
-        registered => sub {
-            my $sub = Jifty->bus->new_listener;
-            $sub->subscribe(Jifty->bus->topic("test_result"));
-            $sub->poll( sub { $self->test_progress(@_) } );
+    # XXX use AnyEvent::HTTP
+    http_request GET => "https://slack.com/api/rtm.start?token=" . $token,
+        headers => {"user-agent" => "smokingit/$Smokingit::VERSION"},
+        timeout => 30,
+        sub {
+            my ($body, $hdr) = @_;
+            die "Slack API request failed: ".$hdr->{Reason} . "\n" . $body
+                unless $hdr->{Status} =~ /^2/;
 
-            my $out = IM::Engine::Outgoing::IRC::Channel->new(
-                channel => Jifty->config->app('irc')->{channel},
-                message => "I'm going to ban so hard",
-                command => "NOTICE",
-            );
-            $self->interface->send_message($out);
-        },
-    );
+            my $data = eval { decode_json( $body ) };
+            die "Failed to decode API response: $body"
+                unless $data;
+
+            die "API response failed: $body"
+                unless $data->{ok};
+
+            $self->name( $data->{self}{name} );
+            $self->slack_properties( $data->{self} );
+
+            my $client = AnyEvent::WebSocket::Client->new;
+            Jifty->log->info( "Connecting to ".$data->{url} );
+            $client->connect( $data->{url} )->cb( sub {
+                # This will die if the connection attempt fails
+                $self->connection( eval { shift->recv } );
+                if ($@) {
+                    Jifty->log->warn("Failed to connect to websocket: $@; retrying in 5s");
+                    $self->reconnect( AE::timer( 5, 0, sub { $self->run } ) );
+                }
+
+                my $sub = Jifty->bus->new_listener;
+                $sub->subscribe(Jifty->bus->topic("test_result"));
+                $sub->poll( sub { $self->test_progress(@_) } );
+
+                $self->connection->on( each_message => sub {$self->each_message(@_)});
+                $self->connection->on( finish       => sub {$self->finish(@_)});
+
+                $self->heartbeat;
+            } );
+        };
 }
 
-sub error_reply {
-    my($incoming, $msg) = @_;
-    return $incoming->reply(
-        String::IRC->new( $msg )->maroon->stringify,
-    );
-}
-
-sub incoming {
+sub send {
     my $self = shift;
-    my $incoming = shift;
+    my (%msg) = @_;
+
+    $msg{id} = $self->get_id;
+
+    my $done = AnyEvent->condvar;
+    $self->pending_reply->{$msg{id}} = $done;
+
+    Jifty->log->debug( "Sending: ".encode_json(\%msg) );
+
+    $self->connection->send( AnyEvent::WebSocket::Message->new(
+        body => encode_json( \%msg )
+    ) );
+
+    unless (defined wantarray) {
+        $done->cb( sub {
+            my ($body) = $_[0]->recv;
+            Jifty->log->warn( "$msg{type} $msg{id} failed: ".encode_json($body->{error}) )
+                unless $body->{ok};
+        });
+    }
+    return $done;
+}
+
+sub send_to {
+    my $self = shift;
+    my ($channel, $msg) = @_;
+    $msg =~ s/&/&amp;/g;
+    $msg =~ s/</&lt;/g;
+    $msg =~ s/>/&gt;/g;
+    $self->send( type => "message", channel => $channel, text => $msg );
+}
+
+sub heartbeat {
+    my $self = shift;
+
+    $self->ping( AE::timer( 10, 10, sub {
+        $self->send( type => "ping", ok => 1 );
+    } ) );
+}
+
+sub each_message {
+    my $self = shift;
+    my ($c, $m) = @_;
+
     Jifty::Record->flush_cache if Jifty::Record->can('flush_cache');
 
-    # Skip messages from the system
-    if ($incoming->sender->name =~ /\./) {
-        warn $incoming->sender->name . ": " .
-            $incoming->message;
-        return;
-    } elsif ($incoming->command eq "NOTICE") {
-        # NOTICE's are required to never trigger auto-replies
-        return;
-    }
+    if ($m->is_close) {
+        Jifty->log->warn("Websocket closed by remote server");
+    } elsif ($m->is_text) {
+        my $body = eval { decode_json($m->body) };
+        if ($@) {
+            Jifty->log->warn("Failed to decode body: ". $m->body);
+            return;
+        }
 
-    my $msg = $incoming->message;
-    $msg =~ s/\s*$//;
-    my $nick = $self->interface->irc->nick;
-    return if $incoming->isa("IM::Engine::Incoming::IRC::Channel")
+        return unless $self->connection;
+        $self->heartbeat;
+
+        Jifty->log->debug( "Got: ".encode_json($body) );
+        if ($body->{reply_to}) {
+            my $call = delete $self->pending_reply->{$body->{reply_to}};
+            $call->send( $body ) if $call;
+        } else {
+            my $call = $self->can( "recv_" . $body->{type} );
+            $call->( $self, $body ) if $call;
+        }
+    }
+}
+
+sub finish {
+    my $self = shift;
+
+    $self->connection( undef );
+    $self->ping( undef );
+
+    Jifty->log->warn( "Disconnected from websocket; reconnecting in 5s..." );
+    $self->reconnect( AE::timer( 5, 0, sub { $self->run } ) );
+}
+
+sub recv_message {
+    my $self = shift;
+
+    my ($body) = @_;
+    return if $body->{hidden};
+
+    my $nick = $self->name;
+
+    my $msg = $body->{text};
+    return if $body->{channel} =~ /^C/
         and not $msg =~ s/^\s*$nick(?:\s*[:,])?\s*(?:please\s+)?//i;
 
     if ($msg =~ /^(?:re)?test\s+(.*)/) {
-        return $self->do_test($incoming, $1);
+        return $self->do_test($body->{channel}, $1);
     } elsif ($msg =~ /^status\s+(?:of\s+)?(.*)/) {
-        return $self->do_status($incoming, $1);
+        return $self->do_status($body->{channel}, $1);
     } elsif ($msg =~ /^(?:re)?sync(?:\s+(.*))?/) {
-        return $self->do_sync($incoming, $1);
+        return $self->do_sync($body->{channel}, $1);
     } elsif ($msg =~ /^queued?(?:\s+(.*))?/) {
-        return $self->do_queued($incoming, $1);
+        return $self->do_queued($body->{channel}, $1);
     } else {
-        return $incoming->reply( "What?" );
+        $self->send_to( $body->{channel} => "What?" );
     }
 }
 
 sub do_test {
     my $self = shift;
-    my ($incoming, $what) = @_;
+    my ($channel, $what) = @_;
     my $action = Smokingit::Action::Test->new(
         current_user => Smokingit::CurrentUser->superuser,
         arguments    => { commit => $what },
     );
     $action->validate;
-    return error_reply(
-        $incoming => $action->result->field_error("commit"),
+    return $self->send_to(
+        $channel => $action->result->field_error("commit"),
     ) unless $action->result->success;
 
     $action->run;
-    return error_reply(
-        $incoming => $action->result->error,
+    return $self->send_to(
+        $channel => $action->result->error,
     ) if $action->result->error;
 
-    return $incoming->reply( $action->result->message );
+    return $self->send_to(
+        $channel => $action->result->message
+    );
 }
 
 sub do_status {
     my $self     = shift;
-    my $incoming = shift;
-    my $what     = $self->lookup_commitish($incoming, @_);
-    if ($what->isa("Smokingit::Model::Commit")) {
-        my $msg = $what->short_sha . " is " . $what->status;
-        $msg = $what->short_sha . " is " . $self->describe_fail($what)
-            if $what->status eq "failing";
+    my $channel  = shift;
+    my $what = $self->lookup_commitish($channel, @_) or return;
 
-        $msg .= "; " . $self->queue_status($what)
-            if $what->status eq "queued";
+    my $msg = $what->short_sha . " is " . $what->status;
+    $msg = $what->short_sha . " is " . $self->describe_fail($what)
+        if $what->status eq "failing";
 
-        $msg .= " - " .  Jifty->web->url(path => "/test/".$what->short_sha);
+    $msg .= "; " . $self->queue_status($what)
+        if $what->status eq "queued";
 
-        return $incoming->reply( $msg );
-    } else {
-        return $what;
-    }
+    $msg .= " - " .  Jifty->web->url(path => "/test/".$what->short_sha);
+
+    $self->send_to( $channel => $msg );
 }
 
 sub lookup_commitish {
     my $self = shift;
-    my ($incoming, $what) = @_;
+    my ($channel, $what) = @_;
     if ($what =~ s/^\s*([a-fA-F0-9]{5,})\s*$/lc $1/e) {
         my $commits = Smokingit::Model::CommitCollection->new;
         $commits->limit( column => "sha", operator => "like", value => "$what%" );
         my @matches = @{ $commits->items_array_ref };
         if (not @matches) {
-            return error_reply(
-                $incoming => "No such SHA!"
+            $self->send_to(
+                $channel => "No such SHA!"
             );
+            return;
         } elsif (@matches > 1) {
-            return error_reply(
-                $incoming => "Found ".(@matches+0)." matching SHAs!",
+            $self->send_to(
+                $channel => "Found ".(@matches+0)." matching SHAs!",
             );
+            return;
         }
 
         return $matches[0];
@@ -154,29 +266,32 @@ sub lookup_commitish {
             my $project_obj = Smokingit::Model::Project->new;
             $project_obj->load_by_cols( name => $project );
             if (not $project_obj->id) {
-                return error_reply(
-                    $incoming => "No such project $project!",
+                $self->send_to(
+                    $channel => "No such project $project!",
                 );
+                return;
             }
             $branches->limit( column => "project_id", value => $project_obj->id );
         }
 
         my @matches = @{ $branches->items_array_ref };
         if (not @matches) {
-            return error_reply(
-                $incoming => "No branch $branch found",
+            $self->send_to(
+                $channel => "No branch $branch found",
             );
+            return;
         } elsif (@matches > 1) {
             @matches = map {$_->project->name} @matches;
-            return error_reply(
-                $incoming => "Found $branch in ".
+            $self->send_to(
+                $channel => "Found $branch in ".
                     join(", ", @matches).
                     ".  Try, $matches[0]:$branch"
             );
+            return;
         }
 
         # Need to re-parse if this got any updates
-        return $self->lookup_commitish($incoming, $what)
+        return $self->lookup_commitish($channel, $what)
             if $matches[0]->as_superuser->sync;
 
         return $matches[0]->current_commit;
@@ -185,37 +300,40 @@ sub lookup_commitish {
 
 sub do_sync {
     my $self = shift;
-    my ($incoming, $what) = @_;
+    my ($channel, $what) = @_;
 
     if (defined $what and $what =~ /^\s*(.*?)\s*$/) {
         $what = $1;
         my $project = Smokingit::Model::Project->new;
         $project->load_by_cols( name => $what );
         if (not $project->id) {
-            return error_reply(
-                $incoming => "No such project $what!",
-            );
+            $self->send_to( $channel => "No such project $what!" );
+        } else {
+            my @results = $project->as_superuser->sync;
+            if (@results) {
+                $self->send_to( $channel => join("; ", @results));
+            } else {
+                $self->send_to( $channel => "No changes" );
+            }
         }
-        my @results = $project->as_superuser->sync;
-        return $incoming->reply("No changes") unless @results;
-        return $incoming->reply(join("; ", @results));
     } else {
         my $projects = Smokingit::Model::ProjectCollection->new;
         $projects->unlimit;
         while (my $p = $projects->next) {
             $p->as_superuser->sync;
         }
-        return $incoming->reply("Synchronized ".$projects->count." projects");
+        $self->send_to(
+            $channel => "Synchronized ".$projects->count." projects"
+        );
     }
 }
 
 sub do_queued {
     my $self = shift;
-    my ($incoming, $what) = @_;
+    my ($channel, $what) = @_;
 
     if ($what) {
-        $what = $self->lookup_commitish($incoming, $what);
-        return $what unless $what->isa("Smokingit::Model::Commit");
+        $what = $self->lookup_commitish($channel, $what) or return;
     }
 
     my $queued = Smokingit::Model::SmokeResultCollection->queued;
@@ -225,7 +343,7 @@ sub do_queued {
     $msg .= join(" ", ";", $what->short_sha, $self->queue_status($what, $queued))
         if $what;
 
-    return $incoming->reply($msg);
+    $self->send_to( $channel => $msg );
 }
 
 sub queue_status {
@@ -266,12 +384,7 @@ sub test_progress {
         my $message = $self->do_analyze($smoke);
         return unless $message;
 
-        my $out = IM::Engine::Outgoing::IRC::Channel->new(
-            channel => Jifty->config->app('irc')->{channel},
-            message => $message,
-            command => "NOTICE",
-        );
-        $self->interface->send_message($out);
+        $self->send_to( Jifty->config->app('slack')->{channel} => $message );
     };
     warn "$@" if $@;
 }
@@ -366,7 +479,7 @@ sub do_analyze {
     if (not $smoke->configuration->auto) {
         my ($status) = $commit->status($smoke);
         if ($status eq "passing") {
-            $status = String::IRC->new("passes tests")->green;
+            $status = "passes tests";
         } else {
             my $fails = Smokingit::Model::SmokeFileResultCollection->new;
             $fails->limit(
@@ -379,7 +492,7 @@ sub do_analyze {
             );
             $status = "is failing " . enum(", ", sort map {$_->filename} @{$fails->items_array_ref});
             my $url = Jifty->web->url(path => "/test/".$commit->short_sha);
-            $status = String::IRC->new($status)->red . " - $url";
+            $status .= " - $url";
         }
         return $smoke->configuration->name . " of ".$commit->short_sha . " on ".$smoke->branch_name
             ." $status";
@@ -409,17 +522,15 @@ sub do_analyze {
     if (($branch->first_commit and $commit->sha eq $branch->first_commit->sha)
             or not @tested_parents) {
         if ($commit->status eq "passing") {
-            return "New branch $branchname " .
-              String::IRC->new("passes tests")->green;
+            return "New branch $branchname passes tests";
         } else {
             return "$author pushed a new branch $branchname which is " .
-              String::IRC->new($self->describe_fail($commit))->red . " - $url";
+              "$commit - $url";
         }
     } elsif ($commit->is_merge){
         my $mergename = $commit->is_merge;
         if ($commit->status eq "passing") {
-            return "Merged $mergename into $branchname, " .
-              String::IRC->new("passes tests")->green;
+            return "Merged $mergename into $branchname, passes tests";
         }
 
         # So the merge commit is fail: there are four possibilities,
@@ -430,30 +541,29 @@ sub do_analyze {
         my $branch_good = $branch_commit->status eq "passing";
 
         if ($trunk_good and $branch_good) {
-            return "$author merged $mergename into $branchname, which is " .
-                String::IRC->new($self->describe_fail($commit))->red .
+            return "$author merged $mergename into $branchname, which is $commit" .
                 ", although both parents were passing - $url";
         } elsif ($trunk_good and not $branch_good) {
             return "$author merged $mergename (".
-              String::IRC->new($self->describe_fail($commit))->red.
+              $self->describe_fail($branch_commit).
               ") into $branchname, which is now ".
-              String::IRC->new($self->describe_fail($commit))->red . " - $url";
+              $self->describe_fail($commit) . " - $url";
         } elsif (not $trunk_good and not $branch_good) {
             return "$author merged $mergename (".
-              String::IRC->new($self->describe_fail($commit))->red.
+              $self->describe_fail($branch_commit).
               ") into $branchname, which is still ".
-              String::IRC->new($self->describe_fail($commit))->red . " - $url";
+              $self->describe_fail($commit) . " - $url";
         } else {
             return "$author merged $mergename".
               " into $branchname, which is still ".
-              String::IRC->new($self->describe_fail($commit))->red . " - $url";
+              $self->describe_fail($commit) . " - $url";
         }
     } elsif ($commit->status ne "passing") {
         # A new commit on an existing branch, which fails tests.  Let's
         # check if this is better or worse than the previous commit.
         if (@tested_parents == grep {$_->status eq "passing"} @tested_parents) {
             return "$branchname by $author began ".
-                String::IRC->new($self->describe_fail($commit))->red .
+                $self->describe_fail($commit) .
                 " as of ".$commit->short_sha. " - $url";
         } else {
             # Was failing, still failing?  Let's not spam about it
@@ -462,8 +572,7 @@ sub do_analyze {
     } elsif (grep {$_->status ne "passing"} @tested_parents) {
         # A new commit on an existing branch, which passes tests but
         # whose parents didn't!
-        return "$branchname by $author now ".
-            String::IRC->new("passes tests")->green .
+        return "$branchname by $author now passes tests".
             " as of ".$commit->short_sha;
     } else {
         # A commit which passes, and whose parents all passed.  Go them?
