@@ -540,7 +540,7 @@ sub do_analyze {
             return "New branch $branchname passes tests";
         } else {
             return "$author pushed a new branch $branchname which is " .
-              "$commit - $url";
+              $self->describe_fail($commit) . " - $url";
         }
     } elsif ($commit->is_merge){
         my $mergename = $commit->is_merge;
