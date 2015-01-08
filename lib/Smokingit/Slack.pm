@@ -28,6 +28,10 @@ has 'connection' => (
     is      => 'rw',
     isa     => 'Maybe[AnyEvent::WebSocket::Connection]',
 );
+has 'listener' => (
+    is      => 'rw',
+    isa     => 'Maybe[AnyMQ::Queue]',
+);
 
 has 'next_id' => (
     is      => 'rw',
@@ -55,6 +59,12 @@ sub run {
 
     my $token = Jifty->config->app('slack')->{token};
     $self->reconnect(undef);
+
+    unless ($self->listener) {
+        $self->listener(Jifty->bus->new_listener);
+        $self->listener->subscribe(Jifty->bus->topic("test_result"));
+        $self->listener->poll( sub { $self->test_progress(@_) } );
+    }
 
     # XXX use AnyEvent::HTTP
     http_request GET => "https://slack.com/api/rtm.start?token=" . $token,
@@ -88,10 +98,6 @@ sub run {
                     Jifty->log->warn("Failed to connect to websocket: $@; retrying in 5s");
                     $self->reconnect( AE::timer( 5, 0, sub { $self->run } ) );
                 }
-
-                my $sub = Jifty->bus->new_listener;
-                $sub->subscribe(Jifty->bus->topic("test_result"));
-                $sub->poll( sub { $self->test_progress(@_) } );
 
                 $self->connection->on( each_message => sub {$self->each_message(@_)});
                 $self->connection->on( finish       => sub {$self->finish(@_)});
