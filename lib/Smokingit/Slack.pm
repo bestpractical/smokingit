@@ -53,6 +53,7 @@ has 'pending_reply' => (
 has 'ping'      => ( is => 'rw', );
 has 'reconnect' => ( is => 'rw', );
 
+has 'last_smoke' => ( is => 'rw' );
 
 sub run {
     my $self = shift;
@@ -216,6 +217,14 @@ sub recv_message {
 sub do_test {
     my $self = shift;
     my ($channel, $what) = @_;
+    if ($what eq "that" and $self->last_smoke) {
+        if ($self->last_smoke->isa("RT::Commit")) {
+            $what = $self->last_smoke->sha;
+        } else {
+            $what = $self->last_smoke->commit->sha
+                . "[". $self->last_smoke->configuration->name ."]";
+        }
+    }
     my $action = Smokingit::Action::Test->new(
         current_user => Smokingit::CurrentUser->superuser,
         arguments    => { commit => $what },
@@ -240,6 +249,7 @@ sub do_status {
     my $channel  = shift;
     my $what = $self->lookup_commitish($channel, @_) or return;
 
+    $self->last_smoke( $what );
     my $msg = $what->short_sha . " is " . $what->status;
     $msg = $what->short_sha . " is " . $self->describe_fail($what)
         if $what->status eq "failing";
@@ -467,6 +477,9 @@ sub describe_fail {
 
     # Are all of the fails in just one configuration?
     if (scalar keys %configs == 1) {
+        if ($self->last_smoke and $self->last_smoke->isa("Smokingit::Model::Commit") and $self->last_smoke->id == $commit->id) {
+            $self->last_smoke( $fails->first->smoke_result );
+        }
         return "failing @{[keys %configs]} tests: ".enum(",", sort keys %testnames);
     }
 
@@ -515,6 +528,7 @@ sub do_analyze {
             my $url = Jifty->web->url(path => "/test/".$commit->short_sha);
             $status .= " - $url";
         }
+        $self->last_smoke($smoke);
         return $smoke->configuration->name . " of ".$commit->short_sha . " on ".$smoke->branch_name
             ." $status";
     }
@@ -542,6 +556,7 @@ sub do_analyze {
     my @tested_parents = grep {$_->smoke_results->count} $commit->parents;
     if (($branch->first_commit and $commit->sha eq $branch->first_commit->sha)
             or not @tested_parents) {
+        $self->last_smoke( $commit );
         if ($commit->status eq "passing") {
             return "New branch $branchname passes tests";
         } else {
@@ -549,6 +564,7 @@ sub do_analyze {
               $self->describe_fail($commit) . " - $url";
         }
     } elsif ($commit->is_merge){
+        $self->last_smoke( $commit );
         my $mergename = $commit->is_merge;
         if ($commit->status eq "passing") {
             return "Merged $mergename into $branchname, passes tests";
@@ -583,6 +599,7 @@ sub do_analyze {
         # A new commit on an existing branch, which fails tests.  Let's
         # check if this is better or worse than the previous commit.
         if (@tested_parents == grep {$_->status eq "passing"} @tested_parents) {
+            $self->last_smoke( $commit );
             return "$branchname by $author began ".
                 $self->describe_fail($commit) .
                 " as of ".$commit->short_sha. " - $url";
@@ -593,6 +610,7 @@ sub do_analyze {
     } elsif (grep {$_->status ne "passing"} @tested_parents) {
         # A new commit on an existing branch, which passes tests but
         # whose parents didn't!
+        $self->last_smoke( $commit );
         return "$branchname by $author now passes tests".
             " as of ".$commit->short_sha;
     } else {
