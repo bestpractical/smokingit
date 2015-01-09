@@ -578,7 +578,8 @@ sub do_analyze {
         my $branch_good = $branch_commit->status eq "passing";
 
         if ($trunk_good and $branch_good) {
-            return "$author merged $mergename into $branchname, which is $commit" .
+            return "$author merged $mergename into $branchname, which is ".
+                $self->describe_fail($commit).
                 ", although both parents were passing - $url";
         } elsif ($trunk_good and not $branch_good) {
             return "$author merged $mergename (".
